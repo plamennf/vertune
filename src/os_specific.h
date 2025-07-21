@@ -29,3 +29,5 @@ bool os_opengl_set_vsync(bool vsync);
 void os_opengl_swap_buffers(Window_Type window);
 
 bool os_file_exists(char *filepath);
+
+u64 os_get_time_nanoseconds();

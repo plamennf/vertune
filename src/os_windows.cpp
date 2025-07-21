@@ -14,6 +14,9 @@
 #define WINDOW_CLASS_NAME L"PlatformerWin32WindowClass"
 static bool window_class_initted;
 
+static LARGE_INTEGER global_perf_freq;
+static u64 nanoseconds_per_tick;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -407,6 +410,18 @@ bool os_file_exists(char *filepath) {
 
     return (attrib != INVALID_FILE_ATTRIBUTES && 
             !(attrib & FILE_ATTRIBUTE_DIRECTORY));
+}
+
+u64 os_get_time_nanoseconds() {
+    if (!global_perf_freq.QuadPart) {
+        QueryPerformanceFrequency(&global_perf_freq);
+        nanoseconds_per_tick = 1000000000 / global_perf_freq.QuadPart;
+    }
+    
+    LARGE_INTEGER perf_counter;
+    QueryPerformanceCounter(&perf_counter);
+    
+    return perf_counter.QuadPart * nanoseconds_per_tick;
 }
 
 #endif
