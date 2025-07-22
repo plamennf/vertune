@@ -64,7 +64,7 @@ static void init_test_world() {
     }
     
     Hero *hero = make_hero(globals.current_world);
-    hero->position = v2(0, 0);
+    hero->position = v2(0, 1);
     hero->size     = v2(1, 1);
     hero->color    = v4(1, 0, 1, 1);
 }

@@ -169,3 +169,24 @@ void draw_tilemap(Tilemap *tilemap, World *world) {
         xpos = 0.0f;
     }
 }
+
+bool is_tile_id_collidable(Tilemap *tilemap, u8 tile_id) {
+    // TODO: Speed!!!
+    for (int i = 0; i < tilemap->num_collidable_ids; i++) {
+        if (tilemap->collidable_ids[i] == tile_id) return true;
+    }
+
+    return false;
+}
+
+u8 get_tile_id_at(Tilemap *tilemap, Vector2 position) {
+    int ix = (int)position.x;
+    int iy = (int)position.y;
+
+    if (ix < 0) return 0;
+    if (iy < 0) return 0;
+    if (ix >= tilemap->width)  return 0;
+    if (iy >= tilemap->height) return 0;
+
+    return tilemap->tiles[iy * tilemap->width + ix];
+}

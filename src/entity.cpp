@@ -2,6 +2,7 @@
 #include "entity.h"
 #include "world.h"
 #include "rendering.h"
+#include "tilemap.h"
 
 const float GRAVITY = -30.0f;
 const float MOVE_SPEED = 5.0f;
@@ -9,7 +10,13 @@ const float JUMP_FORCE = 15.0f;
 const float MAX_FALL_SPEED = -25.0f;
 const float FAST_FALL_MULTIPLIER = 1.5f;
 
-void update_single_hero(Hero *hero, float dt) {    
+void update_single_hero(Hero *hero, float dt) {
+    World *world = hero->world;
+    assert(world);
+
+    Tilemap *tilemap = world->tilemap;
+    assert(tilemap);
+    
     float input_x = 0.0f;
     if (is_key_down('A')) { input_x -= 1.0f; hero->is_facing_right = false; }
     if (is_key_down('D')) { input_x += 1.0f; hero->is_facing_right = true; }
@@ -29,8 +36,43 @@ void update_single_hero(Hero *hero, float dt) {
 
     hero->velocity.y = Max(hero->velocity.y, MAX_FALL_SPEED);
 
-    hero->position += hero->velocity * dt;
+    Vector2 new_position = hero->position + hero->velocity * dt;
 
+    if (hero->velocity.x <= 0.0f) {
+        u8 tile1_id = get_tile_id_at(tilemap, v2(new_position.x, hero->position.y));
+        u8 tile2_id = get_tile_id_at(tilemap, v2(new_position.x, hero->position.y + hero->size.y * 0.9f));
+        if (is_tile_id_collidable(tilemap, tile1_id) || is_tile_id_collidable(tilemap, tile2_id)) {
+            new_position.x = (int)new_position.x + 1.0f;
+            hero->velocity.x = 0.0f;
+        }
+    } else {
+        u8 tile1_id = get_tile_id_at(tilemap, v2(new_position.x + hero->size.x, hero->position.y));
+        u8 tile2_id = get_tile_id_at(tilemap, v2(new_position.x + hero->size.x, hero->position.y + hero->size.y * 0.9f));
+        if (is_tile_id_collidable(tilemap, tile1_id) || is_tile_id_collidable(tilemap, tile2_id)) {
+            new_position.x = (int)new_position.x;
+            hero->velocity.x = 0.0f;
+        }
+    }
+
+    if (hero->velocity.y >= 0) {
+        u8 tile1_id = get_tile_id_at(tilemap, v2(new_position.x, new_position.y + hero->size.y));
+        u8 tile2_id = get_tile_id_at(tilemap, v2(new_position.x + 0.9f * hero->size.x, new_position.y + hero->size.y));
+        if (is_tile_id_collidable(tilemap, tile1_id) || is_tile_id_collidable(tilemap, tile2_id)) {
+            new_position.y = (int)new_position.y;
+            hero->velocity.y = 0.0f;
+        }
+    } else {
+        u8 tile1_id = get_tile_id_at(tilemap, new_position);
+        u8 tile2_id = get_tile_id_at(tilemap, v2(new_position.x + 0.9f * hero->size.x, new_position.y));
+        if (is_tile_id_collidable(tilemap, tile1_id) || is_tile_id_collidable(tilemap, tile2_id)) {
+            new_position.y = (int)new_position.y + 1.0f;
+            hero->velocity.y = 0.0f;
+            hero->is_on_ground = true;
+        }
+    }
+
+    hero->position = new_position;
+    
     if (hero->position.y <= 0.0f) {
         hero->position.y   = 0.0f;
         hero->velocity.y   = 0.0f;
