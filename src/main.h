@@ -18,7 +18,10 @@ struct Time_Info {
     u64 delta_time = 0;
     double delta_time_seconds = 0.0;
 
-    u64 accumulated_dt = 0;
+    // For fps debug info.
+    u64 num_frames_since_last_fps_update = 0;
+    double accumulated_fps_dt = 0.0;
+    double fps_dt = 0.0;
     
     int fps_cap = 60;
 };
@@ -40,6 +43,8 @@ struct Global_Variables {
     Time_Info time_info;
     
     Shader *shader_color = NULL;
+    Shader *shader_texture = NULL;
+    Shader *shader_text = NULL;
 
     Matrix4 object_to_proj_matrix;
     Matrix4 view_to_proj_matrix;

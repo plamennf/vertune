@@ -32,6 +32,10 @@ void draw_world(World *world) {
     set_shader(globals.shader_color);
     rendering_2d(globals.render_width, globals.render_height, get_world_to_view_matrix(world->camera, world));
 
+    set_blend_mode(BLEND_MODE_ALPHA);
+    set_cull_mode(CULL_MODE_OFF);
+    set_depth_test_mode(DEPTH_TEST_OFF);
+
     immediate_begin();
 
     assert(world->tilemap);

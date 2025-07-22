@@ -5,6 +5,19 @@
 #include "rendering.h"
 #include "glex.h"
 
+struct Texture {
+    int width;
+    int height;
+
+    Texture_Format format;
+    int bytes_per_pixel;
+
+    GLenum internal_format;
+    GLenum source_format;
+
+    GLuint id;
+};
+
 struct Framebuffer {
     int width;
     int height;
@@ -82,6 +95,128 @@ void swap_buffers() {
 
 void set_viewport(int x, int y, int width, int height) {
     glViewport(x, y, width, height);
+}
+
+void set_blend_mode(Blend_Mode blend_mode) {
+    switch (blend_mode) {
+        case BLEND_MODE_OFF: {
+            glDisable(GL_BLEND);
+        } break;
+
+        case BLEND_MODE_ALPHA: {
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        } break;
+
+        default: {
+            assert(!"Invalid blend mode");
+        } break;
+    }
+}
+
+void set_cull_mode(Cull_Mode cull_mode) {
+    switch (cull_mode) {
+        case CULL_MODE_OFF: {
+            glDisable(GL_CULL_FACE);
+        } break;
+
+        case CULL_MODE_BACK: {
+            glEnable(GL_CULL_FACE);
+            glCullFace(GL_BACK);
+            glFrontFace(GL_CCW);
+        } break;
+
+        case CULL_MODE_FRONT: {
+            glEnable(GL_CULL_FACE);
+            glCullFace(GL_FRONT);
+            glFrontFace(GL_CCW);
+        } break;
+
+        default: {
+            assert(!"Invalid cull mode");
+        } break;
+    }
+}
+
+void set_depth_test_mode(Depth_Test_Mode depth_test_mode) {
+    switch (depth_test_mode) {
+        case DEPTH_TEST_OFF: {
+            glDisable(GL_DEPTH_TEST);
+        } break;
+
+        case DEPTH_TEST_LEQUAL: {
+            glEnable(GL_DEPTH_TEST);
+            glDepthFunc(GL_LEQUAL);
+        } break;
+
+        default: {
+            assert(!"Invalid depth mode");
+        } break;
+    }
+}
+
+Texture *make_texture() {
+    return (Texture *)malloc(sizeof(Texture));
+}
+
+void release_texture(Texture *texture) {
+    if (texture->id) {
+        glDeleteTextures(1, &texture->id);
+        texture->id = 0;
+    }
+}
+
+static GLenum tf_to_gl_internal_format(Texture_Format format) {
+    switch (format) {
+        case TEXTURE_FORMAT_RGBA8: return GL_SRGB8_ALPHA8;
+        case TEXTURE_FORMAT_R8:    return GL_R8;
+    }
+
+    assert(!"Invalid format");
+    return 0;
+}
+
+static GLenum tf_to_gl_source_format(Texture_Format format) {
+    switch (format) {
+        case TEXTURE_FORMAT_RGBA8: return GL_RGBA;
+        case TEXTURE_FORMAT_R8:    return GL_RED;
+    }
+
+    assert(!"Invalid format");
+    return 0;
+}
+
+void load_texture_from_data(Texture *texture, int width, int height, Texture_Format format, u8 *data) {
+    texture->width  = width;
+    texture->height = height;
+
+    texture->format          = format;
+    texture->bytes_per_pixel = get_bpp(format);
+
+    texture->internal_format = tf_to_gl_internal_format(format);
+    texture->source_format   = tf_to_gl_source_format(format);
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    
+    glGenTextures(1, &texture->id);
+    glBindTexture(GL_TEXTURE_2D, texture->id);
+    glTexImage2D(GL_TEXTURE_2D, 0, texture->internal_format, width, height, 0, texture->source_format, GL_UNSIGNED_BYTE, data);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void update_texture(Texture *texture, int x, int y, int width, int height, u8 *data) {
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glBindTexture(GL_TEXTURE_2D, texture->id);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, width, height, texture->source_format, GL_UNSIGNED_BYTE, data);
+}
+
+void set_texture(int slot, Texture *texture) {
+    glActiveTexture(GL_TEXTURE0 + slot);
+    glBindTexture(GL_TEXTURE_2D, texture->id);
 }
 
 Framebuffer *make_framebuffer(int width, int height) {

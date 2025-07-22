@@ -1,5 +1,6 @@
 #include "main.h"
 #include "rendering.h"
+#include "font.h"
 
 void rendering_2d(int width, int height) {
     Matrix4 m = matrix4_identity();
@@ -19,4 +20,32 @@ void rendering_2d(int width, int height, Matrix4 world_to_view_matrix) {
     globals.object_to_world_matrix = matrix4_identity();
 
     refresh_transform();    
+}
+
+void draw_text(Dynamic_Font *font, char *text, int x, int y, Vector4 color) {
+    Texture *last_texture = NULL;
+    
+    font->prep_text(text, x, y);
+    immediate_begin();
+    for (Font_Quad quad : font->font_quads) {
+        Vector2 p0 = v2(quad.x0, quad.y0);
+        Vector2 p1 = v2(quad.x1, quad.y0);
+        Vector2 p2 = v2(quad.x1, quad.y1);
+        Vector2 p3 = v2(quad.x0, quad.y1);
+        
+        Vector2 uv0 = v2(quad.u0, quad.v1);
+        Vector2 uv1 = v2(quad.u1, quad.v1);
+        Vector2 uv2 = v2(quad.u1, quad.v0);
+        Vector2 uv3 = v2(quad.u0, quad.v0);
+
+        if (last_texture != quad.texture) {
+            set_texture(0, quad.texture);
+            last_texture = quad.texture;
+        }
+
+        immediate_quad(p0, p1, p2, p3, uv0, uv1, uv2, uv3, color);
+    }
+    immediate_flush();
+
+    font->font_quads.count = 0;
 }

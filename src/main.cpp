@@ -5,6 +5,9 @@
 #include "entity.h"
 #include "tilemap.h"
 #include "camera.h"
+#include "font.h"
+
+#include <stdio.h>
 
 #define NS_PER_SECOND 1000000000.0
 
@@ -45,14 +48,22 @@ static void update_time() {
 
     globals.time_info.delta_time       = now_time - globals.time_info.last_time;
     globals.time_info.real_world_time += globals.time_info.delta_time;
-
     globals.time_info.delta_time_seconds = nanoseconds_to_seconds(globals.time_info.delta_time);
-
     globals.time_info.last_time = now_time;
+
+    globals.time_info.num_frames_since_last_fps_update++;
+    globals.time_info.accumulated_fps_dt += globals.time_info.delta_time_seconds;
+    if (globals.time_info.accumulated_fps_dt >= 1.0) {
+        globals.time_info.fps_dt = 1.0 / (double)globals.time_info.num_frames_since_last_fps_update;
+        globals.time_info.num_frames_since_last_fps_update = 0;
+        globals.time_info.accumulated_fps_dt = 0.0;
+    }
 }
 
 static void init_shaders() {
-    globals.shader_color = find_or_load_shader("color");
+    globals.shader_color   = find_or_load_shader("color");
+    globals.shader_texture = find_or_load_shader("texture");
+    globals.shader_text    = find_or_load_shader("text");
 }
 
 static void init_framebuffer() {
@@ -70,6 +81,28 @@ static void init_framebuffer() {
     }
     
     globals.offscreen_buffer = make_framebuffer(render_area.width, render_area.height);
+}
+
+static void draw_debug_hud() {
+    set_shader(globals.shader_text);
+    rendering_2d(globals.render_width, globals.render_height);
+
+    set_blend_mode(BLEND_MODE_ALPHA);
+    set_cull_mode(CULL_MODE_OFF);
+    set_depth_test_mode(DEPTH_TEST_OFF);
+
+    int fps = 0;
+    if (globals.time_info.fps_dt > 0.0) {
+        fps = (int)(1.0 / globals.time_info.fps_dt);
+    }
+    
+    int font_size = (int)(0.03f * globals.render_height);
+    Dynamic_Font *font = get_font_at_size("OpenSans-Regular", font_size);
+    char text[128];
+    snprintf(text, sizeof(text), "FPS: %d", fps);
+    int x = globals.render_width  - font->get_string_width_in_pixels(text);
+    int y = globals.render_height - font->character_height;
+    draw_text(font, text, x, y, v4(1, 1, 1, 1));
 }
 
 static void init_test_world() {
@@ -159,6 +192,7 @@ int main(int argc, char *argv[]) {
         if (globals.window_width > 0 && globals.window_height > 0) {
             set_framebuffer(globals.offscreen_buffer);
             draw_world(globals.current_world);
+            draw_debug_hud();
             blit_framebuffer_to_back_buffer_with_letter_boxing(globals.offscreen_buffer);
         }
         
