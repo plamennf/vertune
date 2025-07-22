@@ -114,6 +114,7 @@ void os_init();
 
 Window_Type os_create_window(int width, int height, char *title);
 void os_update_window_events();
+void os_window_toggle_fullscreen(Window_Type window);
 
 void *os_create_opengl_context(Window_Type window, int version_major, int version_minor, bool core_profile);
 bool os_opengl_set_vsync(bool vsync);

@@ -56,6 +56,8 @@ static void init_shaders() {
 }
 
 static void init_framebuffer() {
+    if (globals.window_width == 0 || globals.window_height == 0) return;
+    
     Rectangle2i render_area = aspect_ratio_fit(globals.window_width, globals.window_height, VIEW_AREA_WIDTH, VIEW_AREA_HEIGHT);
 
     globals.render_width  = render_area.width;
@@ -103,6 +105,12 @@ static void respond_to_input() {
                 Key_State *state = &key_states[event.key_code];
                 state->changed   = state->is_down != event.key_pressed;
                 state->is_down   = event.key_pressed;
+
+                if (event.key_pressed && !event.is_key_repeat) {
+                    if (event.key_code == KEY_F11) {
+                        os_window_toggle_fullscreen(globals.window);
+                    }
+                }
             } break;
         }
     }
@@ -145,13 +153,14 @@ int main(int argc, char *argv[]) {
         
         os_update_window_events();
         respond_to_input();
-
-        set_framebuffer(globals.offscreen_buffer);
         
         update_world(globals.current_world, (float)globals.time_info.delta_time_seconds);
-        draw_world(globals.current_world);
 
-        blit_framebuffer_to_back_buffer_with_letter_boxing(globals.offscreen_buffer);
+        if (globals.window_width > 0 && globals.window_height > 0) {
+            set_framebuffer(globals.offscreen_buffer);
+            draw_world(globals.current_world);
+            blit_framebuffer_to_back_buffer_with_letter_boxing(globals.offscreen_buffer);
+        }
         
         swap_buffers();
 

@@ -11,6 +11,27 @@
 #include <Windows.h>
 #include "glex.h"
 
+struct Window_State {
+    HWND hwnd;
+    WINDOWPLACEMENT prev_wp;
+};
+
+static Array <Window_State> created_window_states;
+
+static Window_State *get_window_state(HWND hwnd) {
+    for (int i = 0; i < created_window_states.count; i++) {
+        Window_State *state = &created_window_states[i];
+        if (state->hwnd == hwnd) {
+            return state;
+        }
+    }
+
+    Window_State *state = created_window_states.add();
+    state->hwnd    = hwnd;
+    state->prev_wp = {};
+    return state;
+}
+
 #define WINDOW_CLASS_NAME L"PlatformerWin32WindowClass"
 static bool window_class_initted;
 
@@ -169,10 +190,14 @@ static LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM 
             event.alt_down       = alt_state;
             globals.events_this_frame.add(event);
 
-            if (alt_state && key_code == KEY_F4 && is_down) {
-                Event event;
-                event.type = EVENT_TYPE_QUIT;
-                globals.events_this_frame.add(event);
+            if (alt_state && is_down) {
+                if (key_code == KEY_F4) {
+                    Event event;
+                    event.type = EVENT_TYPE_QUIT;
+                    globals.events_this_frame.add(event);
+                } else if (key_code == KEY_ENTER) {
+                    os_window_toggle_fullscreen(hwnd);
+                }
             }
         } break;
 
@@ -280,6 +305,39 @@ void os_update_window_events() {
         TranslateMessage(&msg);
         DispatchMessageW(&msg);
     }
+}
+
+void os_window_toggle_fullscreen(Window_Type window) {
+    Window_State *state = get_window_state(window);
+    assert(state);
+
+    state->prev_wp.length = sizeof(WINDOWPLACEMENT);
+
+    DWORD style = GetWindowLongW(window, GWL_STYLE);
+    if (style & WS_OVERLAPPEDWINDOW) {
+        MONITORINFO mi = {sizeof(mi)};
+        if (GetWindowPlacement(window, &state->prev_wp) &&
+            GetMonitorInfoW(MonitorFromWindow(window, MONITOR_DEFAULTTOPRIMARY), &mi)) {
+            SetWindowLongW(window, GWL_STYLE, style & ~WS_OVERLAPPEDWINDOW);
+            SetWindowPos(window, HWND_TOP, mi.rcMonitor.left, mi.rcMonitor.top,
+                         mi.rcMonitor.right - mi.rcMonitor.left,
+                         mi.rcMonitor.bottom - mi.rcMonitor.top,
+                         SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+        }
+    } else {
+        SetWindowLongW(window, GWL_STYLE, style | WS_OVERLAPPEDWINDOW);
+        SetWindowPlacement(window, &state->prev_wp);
+        SetWindowPos(window, NULL, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+    }
+
+    RECT rect;
+    GetClientRect(window, &rect);
+    int width  = rect.right  - rect.left;
+    int height = rect.bottom - rect.top;
+
+    auto record    = get_window_resize_record(window);
+    record->width  = width;
+    record->height = height;
 }
 
 void *os_create_opengl_context(Window_Type window, int version_major, int version_minor, bool core_profile) {
