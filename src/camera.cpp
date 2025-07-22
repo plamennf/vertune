@@ -32,12 +32,13 @@ void update_camera(Camera *camera, World *world, float dt) {
     
     Vector2 diff = camera->target - camera->position;
     float dist = length(diff);
-
-    Vector2 direction = normalize_or_zero(diff);
-    float speed = dist * acceleration;
-    clamp(&speed, min_speed, max_speed);
-    
-    camera->position += direction * speed * dt;
+    if (dist > 0.01f) {
+        Vector2 direction = normalize_or_zero(diff);
+        float speed = dist * acceleration;
+        clamp(&speed, min_speed, max_speed);
+        
+        camera->position += direction * speed * dt;
+    }
 }
 
 Matrix4 get_world_to_view_matrix(Camera *camera, World *world) {
