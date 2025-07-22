@@ -8,6 +8,7 @@
 #include "os_specific.h"
 
 struct Shader;
+struct Framebuffer;
 struct World;
 
 struct Time_Info {
@@ -32,6 +33,10 @@ struct Global_Variables {
     int window_width = 0;
     int window_height = 0;
 
+    Framebuffer *offscreen_buffer = NULL;
+    int render_width  = 0;
+    int render_height = 0;
+    
     Time_Info time_info;
     
     Shader *shader_color = NULL;
@@ -40,7 +45,7 @@ struct Global_Variables {
     Matrix4 view_to_proj_matrix;
     Matrix4 world_to_view_matrix;
     Matrix4 object_to_world_matrix;
-
+    
     World *current_world = NULL;
 };
 

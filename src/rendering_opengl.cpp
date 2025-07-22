@@ -5,6 +5,15 @@
 #include "rendering.h"
 #include "glex.h"
 
+struct Framebuffer {
+    int width;
+    int height;
+
+    GLuint fbo_id;
+
+    GLuint color_id;
+};
+
 struct Shader {
     GLuint program_id;
 
@@ -73,6 +82,66 @@ void swap_buffers() {
 
 void set_viewport(int x, int y, int width, int height) {
     glViewport(x, y, width, height);
+}
+
+Framebuffer *make_framebuffer(int width, int height) {
+    Framebuffer *framebuffer = (Framebuffer *)malloc(sizeof(*framebuffer));
+
+    framebuffer->width  = width;
+    framebuffer->height = height;
+    
+    glGenFramebuffers(1, &framebuffer->fbo_id);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer->fbo_id);
+
+    glGenTextures(1, &framebuffer->color_id);
+    glBindTexture(GL_TEXTURE_2D, framebuffer->color_id);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB8_ALPHA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebuffer->color_id, 0);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        logprintf("Framebuffer is not complete!!!\n");
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    return framebuffer;
+}
+
+void release_framebuffer(Framebuffer *framebuffer) {
+    if (framebuffer->color_id) {
+        glDeleteTextures(1, &framebuffer->color_id);
+        framebuffer->color_id = 0;
+    }
+
+    if (framebuffer->fbo_id) {
+        glDeleteFramebuffers(1, &framebuffer->fbo_id);
+        framebuffer->fbo_id = 0;
+    }
+}
+
+void blit_framebuffer_to_back_buffer_with_letter_boxing(Framebuffer *framebuffer) {
+    assert(framebuffer);
+    
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffer->fbo_id);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
+    int dx0 = (globals.window_width  - framebuffer->width)  / 2;
+    int dy0 = (globals.window_height - framebuffer->height) / 2;
+    int dx1 = dx0 + framebuffer->width;
+    int dy1 = dy0 + framebuffer->height;
+    
+    glBlitFramebuffer(0, 0, framebuffer->width, framebuffer->height,
+                      dx0, dy0, dx1, dy1, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+}
+
+void set_framebuffer(Framebuffer *framebuffer) {
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer->fbo_id);
 }
 
 void clear_framebuffer(float r, float g, float b, float a) {
@@ -163,6 +232,12 @@ void immediate_quad(Vector2 position, Vector2 size, Vector4 color) {
 
 Shader *make_shader() {
     return (Shader *)malloc(sizeof(Shader));
+}
+
+void release_shader(Shader *shader) {
+    if (shader->program_id) {
+        glDeleteProgram(shader->program_id);
+    }
 }
 
 bool load_shader(Shader *shader, char *filepath) {

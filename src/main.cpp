@@ -55,6 +55,21 @@ static void init_shaders() {
     globals.shader_color = find_or_load_shader("color");
 }
 
+static void init_framebuffer() {
+    Rectangle2i render_area = aspect_ratio_fit(globals.window_width, globals.window_height, VIEW_AREA_WIDTH, VIEW_AREA_HEIGHT);
+
+    globals.render_width  = render_area.width;
+    globals.render_height = render_area.height;
+
+    if (globals.offscreen_buffer) {
+        release_framebuffer(globals.offscreen_buffer);
+        free(globals.offscreen_buffer);
+        globals.offscreen_buffer = NULL;
+    }
+    
+    globals.offscreen_buffer = make_framebuffer(render_area.width, render_area.height);
+}
+
 static void init_test_world() {
     globals.current_world = new World();
     init_world(globals.current_world, v2i(32, 18));
@@ -97,6 +112,8 @@ static void respond_to_input() {
 
         globals.window_width  = record.width;
         globals.window_height = record.height;
+
+        init_framebuffer();
     }
     globals.window_resizes.count = 0;
 }
@@ -111,6 +128,7 @@ int main(int argc, char *argv[]) {
     if (!init_rendering(globals.window, globals.should_vsync)) return 1;
     init_resource_manager(); // !!! Need to init resource manager before shaders and textures !!!
     init_shaders();
+    init_framebuffer();
 
     init_test_world();
     
@@ -127,9 +145,13 @@ int main(int argc, char *argv[]) {
         
         os_update_window_events();
         respond_to_input();
-            
+
+        set_framebuffer(globals.offscreen_buffer);
+        
         update_world(globals.current_world, (float)globals.time_info.delta_time_seconds);
         draw_world(globals.current_world);
+
+        blit_framebuffer_to_back_buffer_with_letter_boxing(globals.offscreen_buffer);
         
         swap_buffers();
 

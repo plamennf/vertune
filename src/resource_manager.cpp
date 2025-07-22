@@ -108,6 +108,7 @@ static bool hotload_callback(fswatcher_event_handler *handler, fswatcher_event_t
             return false;
         }
 
+        release_shader(shader_info.data);
         load_shader(shader_info.data, shader_info.full_path);
     }
 

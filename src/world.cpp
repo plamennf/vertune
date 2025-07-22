@@ -26,11 +26,11 @@ void update_world(World *world, float dt) {
 void draw_world(World *world) {
     set_shader(NULL);
     
-    set_viewport(0, 0, globals.window_width, globals.window_height);
+    set_viewport(0, 0, globals.render_width, globals.render_height);
     clear_framebuffer(0.2f, 0.5f, 0.8f, 1.0f);
 
     set_shader(globals.shader_color);
-    rendering_2d(globals.window_width, globals.window_height, get_world_to_view_matrix(world->camera, world));
+    rendering_2d(globals.render_width, globals.render_height, get_world_to_view_matrix(world->camera, world));
 
     immediate_begin();
 
@@ -53,20 +53,20 @@ Vector2 world_space_to_screen_space(World *world, Vector2 v) {
     result.x /= (float)VIEW_AREA_WIDTH;
     result.y /= (float)VIEW_AREA_HEIGHT;
 
-    result.x *= (float)globals.window_width;
-    result.y *= (float)globals.window_height;
+    result.x *= (float)globals.render_width;
+    result.y *= (float)globals.render_height;
 
     return result;
 }
 
 Vector2 screen_space_to_world_space(World *world, Vector2 v) {
-    assert(globals.window_width  > 0);
-    assert(globals.window_height > 0);
+    assert(globals.render_width  > 0);
+    assert(globals.render_height > 0);
 
     Vector2 result = v;
 
-    result.x /= (float)globals.window_width;
-    result.y /= (float)globals.window_height;
+    result.x /= (float)globals.render_width;
+    result.y /= (float)globals.render_height;
 
     result.x *= (float)VIEW_AREA_WIDTH;
     result.y *= (float)VIEW_AREA_HEIGHT;
