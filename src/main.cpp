@@ -3,6 +3,7 @@
 #include "resource_manager.h"
 #include "world.h"
 #include "entity.h"
+#include "tilemap.h"
 
 #define NS_PER_SECOND 1000000000.0
 
@@ -56,6 +57,11 @@ static void init_shaders() {
 static void init_test_world() {
     globals.current_world = new World();
     init_world(globals.current_world, v2i(32, 18));
+
+    globals.current_world->tilemap = new Tilemap();
+    if (!load_tilemap(globals.current_world->tilemap, "data/tilemaps/test.tm")) {
+        exit(1);
+    }
     
     Hero *hero = make_hero(globals.current_world);
     hero->position = v2(0, 0);

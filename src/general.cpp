@@ -283,3 +283,39 @@ char *read_entire_file(char *filepath, s64 *length_pointer, bool zero_terminate)
     }
     return result;
 }
+
+char *break_by_space(char *s) {
+    if (!s) return NULL;
+    if (*s == 0) return NULL;
+
+    char *start = s;
+    char *end   = start;
+    while (*end != ' ' && *end != '\n' && *end != '\0') {
+        end++;
+    }
+
+    if (*end != '\0') {
+        *end = 0;
+        end++;
+    }
+
+    return end;
+}
+
+char *break_by_comma(char *s) {
+    if (!s) return NULL;
+    if (*s == 0) return NULL;
+
+    char *start = s;
+    char *end   = start;
+    while (*end != ',' && *end != '\n' && *end != '\0') {
+        end++;
+    }
+
+    if (*end != '\0') {
+        *end = 0;
+        end++;
+    }
+
+    return end;
+}

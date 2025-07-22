@@ -2,14 +2,16 @@
 #include "world.h"
 #include "entity.h"
 #include "rendering.h"
+#include "tilemap.h"
 
 #include "mt19937-64.h"
 
 void init_world(World *world, Vector2i size) {
     unsigned long long init[] = {(u64)size.x, (u64)size.y};
     init_by_array64(init, ArrayCount(init));
-    
-    world->size = size;
+
+    world->tilemap = NULL;
+    world->size    = size;
 }
 
 void update_world(World *world, float dt) {
@@ -18,7 +20,7 @@ void update_world(World *world, float dt) {
     }
 }
 
-void draw_world(World *world) {            
+void draw_world(World *world) {
     set_shader(NULL);
     
     set_viewport(0, 0, globals.window_width, globals.window_height);
@@ -28,6 +30,9 @@ void draw_world(World *world) {
     rendering_2d(globals.window_width, globals.window_height);
 
     immediate_begin();
+
+    assert(world->tilemap);
+    draw_tilemap(world->tilemap, world);
     
     assert(world->by_type._Hero);
     Hero *hero = world->by_type._Hero;

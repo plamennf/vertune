@@ -5,6 +5,7 @@ const int VIEW_AREA_HEIGHT = 9;
 
 struct Entity;
 struct Hero;
+struct Tilemap;
 
 struct Entities_By_Type {
     Hero *_Hero = NULL;
@@ -14,6 +15,8 @@ struct World {
     Entities_By_Type by_type;
     Hash_Table <u64, Entity *> entity_lookup;
     Array <Entity *> all_entities;
+
+    Tilemap *tilemap;
     
     Vector2i size;
 };
