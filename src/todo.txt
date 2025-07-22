@@ -1,0 +1,2 @@
+Ideas for enemies:
+- One-eyed circles that periodically shoot lasers from their eyes.

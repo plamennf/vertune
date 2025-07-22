@@ -17,6 +17,10 @@ static bool window_class_initted;
 static LARGE_INTEGER global_perf_freq;
 static u64 nanoseconds_per_tick;
 
+static bool shift_state;
+static bool ctrl_state;
+static bool alt_state;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -131,6 +135,45 @@ static LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM 
             auto record    = get_window_resize_record(hwnd);
             record->width  = width;
             record->height = height;
+        } break;
+
+        case WM_KEYDOWN:
+        case WM_KEYUP:
+        case WM_SYSKEYDOWN:
+        case WM_SYSKEYUP: {
+            int key_code  = (int)wparam;
+            bool is_down  = (lparam & (1 << 31)) == 0;
+            bool was_down = (lparam & (1 << 30)) == 1;
+
+            switch (key_code) {
+                case KEY_SHIFT: {
+                    shift_state = is_down;
+                } break;
+
+                case KEY_CTRL: {
+                    ctrl_state = is_down;
+                } break;
+
+                case KEY_ALT: {
+                    alt_state = is_down;
+                } break;
+            }
+            
+            Event event;
+            event.type           = EVENT_TYPE_KEYBOARD;
+            event.is_key_repeat  = is_down && was_down;
+            event.key_pressed    = is_down;
+            event.key_code       = key_code;
+            event.shift_down     = shift_state;
+            event.ctrl_down      = ctrl_state;
+            event.alt_down       = alt_state;
+            globals.events_this_frame.add(event);
+
+            if (alt_state && key_code == KEY_F4 && is_down) {
+                Event event;
+                event.type = EVENT_TYPE_QUIT;
+                globals.events_this_frame.add(event);
+            }
         } break;
 
         default: {

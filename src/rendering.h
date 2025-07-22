@@ -12,6 +12,7 @@ void immediate_flush();
 void immediate_quad(Vector2 p0, Vector2 p1, Vector2 p2, Vector2 p3, Vector2 uv0, Vector2 uv1, Vector2 uv2, Vector2 uv3, Vector4 color);
 void immediate_quad(Vector2 p0, Vector2 p1, Vector2 p2, Vector2 p3, Vector4 color);
 void immediate_quad(float x, float y, float w, float h, Vector4 color);
+void immediate_quad(Vector2 position, Vector2 size, Vector4 color);
 
 struct Shader;
 Shader *make_shader();

@@ -8,6 +8,26 @@
 
 Global_Variables globals;
 
+struct Key_State {
+    bool is_down;
+    bool was_down;
+    bool changed;
+};
+
+static Key_State key_states[KEY_COUNT];
+
+bool is_key_down(int key_code) {
+    return key_states[key_code].is_down;
+}
+
+bool is_key_pressed(int key_code) {
+    return key_states[key_code].is_down && key_states[key_code].changed;
+}
+
+bool was_key_just_released(int key_code) {
+    return key_states[key_code].was_down && !key_states[key_code].is_down;
+}
+
 static double nanoseconds_to_seconds(u64 nanoseconds) {
     double result = (double)nanoseconds / NS_PER_SECOND;
     return result;
@@ -25,7 +45,8 @@ static void update_time() {
     globals.time_info.real_world_time += globals.time_info.delta_time;
 
     globals.time_info.delta_time_seconds = nanoseconds_to_seconds(globals.time_info.delta_time);
-    globals.time_info.accumulated_dt  += globals.time_info.delta_time;
+
+    globals.time_info.last_time = now_time;
 }
 
 static void init_shaders() {
@@ -47,6 +68,12 @@ static void respond_to_input() {
         switch (event.type) {
             case EVENT_TYPE_QUIT: {
                 globals.should_quit_game = true;
+            } break;
+
+            case EVENT_TYPE_KEYBOARD: {
+                Key_State *state = &key_states[event.key_code];
+                state->changed   = state->is_down != event.key_pressed;
+                state->is_down   = event.key_pressed;
             } break;
         }
     }
@@ -74,21 +101,32 @@ int main(int argc, char *argv[]) {
     init_test_world();
     
     globals.time_info.last_time = os_get_time_nanoseconds();
+    u64 last_time = os_get_time_nanoseconds();
     while (!globals.should_quit_game) {
         update_time();
+
+        for (int i = 0; i < ArrayCount(key_states); i++) {
+            Key_State *state = &key_states[i];
+            state->was_down  = state->is_down;
+            state->changed   = false;
+        }
         
         os_update_window_events();
         respond_to_input();
-
-        while (globals.time_info.accumulated_dt >= seconds_to_nanoseconds(1.0 / (double)globals.time_info.fps_cap)) {
-            update_world(globals.current_world, (float)(1.0 / (double)globals.time_info.fps_cap));
-            draw_world(globals.current_world);
-            globals.time_info.accumulated_dt -= seconds_to_nanoseconds(1.0 / (double)globals.time_info.fps_cap);
-        }
+            
+        update_world(globals.current_world, (float)globals.time_info.delta_time_seconds);
+        draw_world(globals.current_world);
         
         swap_buffers();
 
         do_hotloading();
+
+        u64 fps_cap_nanoseconds = 1000000000 / globals.time_info.fps_cap;
+    
+        while (os_get_time_nanoseconds() <= last_time + fps_cap_nanoseconds) {
+            // @TODO: Maybe sleep.
+        }
+        last_time += fps_cap_nanoseconds;
     }
     
     return 0;

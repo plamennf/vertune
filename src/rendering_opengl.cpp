@@ -156,6 +156,10 @@ void immediate_quad(float x, float y, float w, float h, Vector4 color) {
     immediate_quad(p0, p1, p2, p3, color);
 }
 
+void immediate_quad(Vector2 position, Vector2 size, Vector4 color) {
+    immediate_quad(position.x, position.y, size.x, size.y, color);
+}
+
 Shader *make_shader() {
     return (Shader *)malloc(sizeof(Shader));
 }

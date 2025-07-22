@@ -45,3 +45,7 @@ struct Global_Variables {
 };
 
 extern Global_Variables globals;
+
+bool is_key_down(int key_code);
+bool is_key_pressed(int key_code);
+bool was_key_just_released(int key_code);

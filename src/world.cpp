@@ -13,7 +13,9 @@ void init_world(World *world, Vector2i size) {
 }
 
 void update_world(World *world, float dt) {
-    
+    if (world->by_type._Hero) {
+        update_single_hero(world->by_type._Hero, dt);
+    }
 }
 
 void draw_world(World *world) {            
@@ -25,14 +27,12 @@ void draw_world(World *world) {
     set_shader(globals.shader_color);
     rendering_2d(globals.window_width, globals.window_height);
 
+    immediate_begin();
+    
     assert(world->by_type._Hero);
     Hero *hero = world->by_type._Hero;
+    draw_single_hero(hero);
 
-    Vector2 position = world_space_to_screen_space(world, hero->position);
-    Vector2 size     = world_space_to_screen_space(world, hero->size);
-    
-    immediate_begin();
-    immediate_quad(position.x, position.y, size.x, size.y, hero->color);
     immediate_flush();
 }
 
