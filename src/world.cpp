@@ -17,14 +17,58 @@ void init_world(World *world, Vector2i size) {
 
 void update_world(World *world, float dt) {
     for (Enemy *enemy : world->by_type._Enemy) {
+        if (enemy->scheduled_for_destruction) continue;
+
         update_single_enemy(enemy, dt);
+    }
+
+    for (Projectile *projectile : world->by_type._Projectile) {
+        if (projectile->scheduled_for_destruction) continue;
+
+        update_single_projectile(projectile, dt);
     }
     
     if (world->by_type._Hero) {
-        update_single_hero(world->by_type._Hero, dt);
+        if (!world->by_type._Hero->scheduled_for_destruction) {
+            update_single_hero(world->by_type._Hero, dt);
+        }
     }
 
     update_camera(world->camera, world, dt);
+
+    // Is it safe to do this here???
+    for (Entity *e : world->entities_to_be_destroyed) {
+        int index = world->all_entities.find(e);
+        if (index != -1) {
+            world->all_entities.ordered_remove_by_index(index);
+        }
+
+        for (int i = 0; i < world->entity_lookup.allocated; i++) {
+            auto bucket = &world->entity_lookup.buckets[i];
+            if (bucket->key == e->id && bucket->value == e) {
+                world->entity_lookup.occupancy_mask[i] = false;
+                break;
+            }
+        }
+        world->entity_lookup.count--;
+
+        switch (e->type) {
+            case ENTITY_TYPE_HERO: {
+                world->by_type._Hero = NULL;
+            } break;
+
+            case ENTITY_TYPE_ENEMY: {
+                world->by_type._Enemy.ordered_remove_by_value((Enemy *)e);
+            } break;
+
+            case ENTITY_TYPE_PROJECTILE: {
+                world->by_type._Projectile.ordered_remove_by_value((Projectile *)e);
+            } break;
+        }
+
+        delete e;
+    }
+    world->entities_to_be_destroyed.count = 0;
 }
 
 void draw_world(World *world) {
@@ -46,12 +90,22 @@ void draw_world(World *world) {
     draw_tilemap(world->tilemap, world);
 
     for (Enemy *enemy : world->by_type._Enemy) {
+        if (enemy->scheduled_for_destruction) continue;
+        
         draw_single_enemy(enemy);
+    }
+
+    for (Projectile *projectile : world->by_type._Projectile) {
+        if (projectile->scheduled_for_destruction) continue;
+
+        draw_single_projectile(projectile);
     }
     
     assert(world->by_type._Hero);
     Hero *hero = world->by_type._Hero;
-    draw_single_hero(hero);
+    if (!hero->scheduled_for_destruction) {
+        draw_single_hero(hero);
+    }
 
     immediate_flush();
 }
@@ -108,6 +162,7 @@ static void register_entity(World *world, Entity *e, Entity_Type type) {
     e->id    = id;
     e->world = world;
     e->type  = type;
+    e->scheduled_for_destruction = false;
 
     world->entity_lookup.add(id, e);
     world->all_entities.add(e);
@@ -129,4 +184,21 @@ Enemy *make_enemy(World *world) {
     register_entity(world, enemy, ENTITY_TYPE_ENEMY);
     
     return enemy;
+}
+
+Projectile *make_projectile(World *world) {
+    Projectile *projectile = new Projectile();
+
+    world->by_type._Projectile.add(projectile);
+    register_entity(world, projectile, ENTITY_TYPE_PROJECTILE);
+
+    return projectile;
+}
+
+void schedule_for_destruction(Entity *entity) {
+    World *world = entity->world;
+    assert(world);
+
+    entity->scheduled_for_destruction = true;
+    world->entities_to_be_destroyed.add(entity);
 }

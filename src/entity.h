@@ -6,12 +6,14 @@ enum Entity_Type {
     ENTITY_TYPE_UNKNOWN,
     ENTITY_TYPE_HERO,
     ENTITY_TYPE_ENEMY,
+    ENTITY_TYPE_PROJECTILE,
 };
 
 struct Entity {
     Entity_Type type;
     u64 id;
     World *world;
+    bool scheduled_for_destruction;
 
     Vector2 position;
     Vector2 size;
@@ -35,11 +37,23 @@ struct Hero : public Entity {
 void update_single_hero(Hero *hero, float dt);
 void draw_single_hero(Hero *hero);
 
-struct Enemy : public Entity {
+struct Enemy : public Entity {    
+    float speed = 2.0f;
+    bool is_facing_right = true;
+    float radius = 0.5f;
+
+    float time_since_last_projectile = 0.0f;
+    float time_between_projectiles = 3.0f;
+};
+
+void update_single_enemy(Enemy *enemy, float dt);
+void draw_single_enemy(Enemy *enemy);
+
+struct Projectile : public Entity {
     float speed = 5.0f;
     bool is_facing_right = true;
     float radius = 0.5f;
 };
 
-void update_single_enemy(Enemy *enemy, float dt);
-void draw_single_enemy(Enemy *enemy);
+void update_single_projectile(Projectile *projectile, float dt);
+void draw_single_projectile(Projectile *projectile);

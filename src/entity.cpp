@@ -168,6 +168,11 @@ void update_single_enemy(Enemy *enemy, float dt) {
             new_position.x = (int)new_position.x + 1.0f;
             enemy->is_facing_right = true;
         }
+
+        if (new_position.x < 0.0f) {
+            new_position.x = (int)new_position.x + 1.0f;
+            enemy->is_facing_right = true;
+        }
     } else {
         u8 tile1_id = get_tile_id_at(tilemap, v2(new_position.x + enemy->size.x, enemy->position.y));
         u8 tile2_id = get_tile_id_at(tilemap, v2(new_position.x + enemy->size.x, enemy->position.y + enemy->size.y * 0.9f));
@@ -183,6 +188,24 @@ void update_single_enemy(Enemy *enemy, float dt) {
     }
 
     enemy->position = new_position + v2(0.5f, 0.5f);
+
+    enemy->time_since_last_projectile += dt;
+    if (enemy->time_since_last_projectile >= enemy->time_between_projectiles) {
+        Vector2 projectile_position = enemy->position;
+        if (enemy->is_facing_right) {
+            projectile_position.x += enemy->radius;
+        } else {
+            projectile_position.x -= enemy->radius;
+        }
+        
+        Projectile *projectile      = make_projectile(world);
+        projectile->position        = projectile_position;
+        projectile->is_facing_right = enemy->is_facing_right;
+        projectile->speed           = 5.0f;
+        projectile->color           = v4(1, 0, 1, 1);
+        projectile->radius          = 0.2f;
+        enemy->time_since_last_projectile = 0.0f;
+    }
 }
 
 void draw_single_enemy(Enemy *enemy) {
@@ -193,4 +216,59 @@ void draw_single_enemy(Enemy *enemy) {
     Vector2 screen_space_size     = world_space_to_screen_space(world, v2(0, enemy->radius));
 
     immediate_circle(screen_space_position, screen_space_size.y, enemy->color);
+}
+
+void update_single_projectile(Projectile *projectile, float dt) {
+    World *world = projectile->world;
+    assert(world);
+
+    Tilemap *tilemap = world->tilemap;
+    assert(tilemap);
+
+    Vector2 move_dir = v2(0, 0);
+    if (projectile->is_facing_right) move_dir.x = +1.0f;
+    else                             move_dir.x = -1.0f;
+    
+    Vector2 new_position = projectile->position + move_dir * projectile->speed * dt;
+    new_position.x -= 0.5f;
+    new_position.y -= 0.5f;
+
+    bool has_collided = false;
+    if (!projectile->is_facing_right) {
+        u8 tile1_id = get_tile_id_at(tilemap, v2(new_position.x, projectile->position.y));
+        u8 tile2_id = get_tile_id_at(tilemap, v2(new_position.x, projectile->position.y + projectile->size.y * 0.9f));
+        if (is_tile_id_collidable(tilemap, tile1_id) || is_tile_id_collidable(tilemap, tile2_id)) {
+            has_collided = true;
+        }
+
+        if (new_position.x < 0.0f) {
+            has_collided = true;
+        }
+    } else {
+        u8 tile1_id = get_tile_id_at(tilemap, v2(new_position.x + projectile->size.x, projectile->position.y));
+        u8 tile2_id = get_tile_id_at(tilemap, v2(new_position.x + projectile->size.x, projectile->position.y + projectile->size.y * 0.9f));
+        if (is_tile_id_collidable(tilemap, tile1_id) || is_tile_id_collidable(tilemap, tile2_id)) {
+            has_collided = true;
+        }
+
+        if (new_position.x > world->size.x - projectile->radius * 2.0f) {
+            has_collided = true;
+        }
+    }
+    
+    if (!has_collided) {
+        projectile->position = new_position + v2(0.5f, 0.5f);
+    } else {
+        schedule_for_destruction(projectile);
+    }
+}
+
+void draw_single_projectile(Projectile *projectile) {
+    World *world = projectile->world;
+    assert(world);
+
+    Vector2 screen_space_position = world_space_to_screen_space(world, projectile->position);
+    Vector2 screen_space_size     = world_space_to_screen_space(world, v2(0, projectile->radius));
+
+    immediate_circle(screen_space_position, screen_space_size.y, projectile->color);    
 }

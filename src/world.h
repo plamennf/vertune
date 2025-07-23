@@ -8,10 +8,12 @@ struct Hero;
 struct Tilemap;
 struct Camera;
 struct Enemy;
+struct Projectile;
 
 struct Entities_By_Type {
     Hero *_Hero = NULL;
     Array <Enemy *> _Enemy;
+    Array <Projectile *> _Projectile;
 };
 
 struct World {
@@ -19,6 +21,8 @@ struct World {
     Hash_Table <u64, Entity *> entity_lookup;
     Array <Entity *> all_entities;
 
+    Array <Entity *> entities_to_be_destroyed;
+    
     Tilemap *tilemap;
     Camera *camera;
     
@@ -33,6 +37,8 @@ Vector2 world_space_to_screen_space(World *world, Vector2 v);
 Vector2 screen_space_to_world_space(World *world, Vector2 v);
 
 Entity *get_entity_by_id(World *world, u64 id);
+void schedule_for_destruction(Entity *entity);
 
 Hero *make_hero(World *world);
 Enemy *make_enemy(World *world);
+Projectile *make_projectile(World *world);
