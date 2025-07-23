@@ -1,2 +1,5 @@
 Ideas for enemies:
 - One-eyed circles that periodically shoot lasers from their eyes.
+
+TODO:
+- Added normal collision detection between Hero and Enemy
