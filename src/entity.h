@@ -32,10 +32,13 @@ struct Hero : public Entity {
     Vector2 velocity = v2(0, 0);
     bool is_facing_right = true;
     bool is_on_ground = true;
+    double health = 3.0;
 };
 
 void update_single_hero(Hero *hero, float dt);
 void draw_single_hero(Hero *hero);
+
+void damage_hero(Hero *hero, double damage_amount);
 
 struct Enemy : public Entity {    
     float speed = 2.0f;

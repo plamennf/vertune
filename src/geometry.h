@@ -242,6 +242,28 @@ inline Vector2 move_toward(Vector2 a, Vector2 b, float amount) {
     return result;
 }
 
+inline Vector2 minv(Vector2 a, Vector2 b) {
+    Vector2 result;
+
+    result.x = Min(a.x, b.x);
+    result.y = Min(a.y, b.y);
+
+    return result;
+}
+
+inline Vector2 maxv(Vector2 a, Vector2 b) {
+    Vector2 result;
+
+    result.x = Max(a.x, b.x);
+    result.y = Max(a.y, b.y);
+
+    return result;
+}
+
+inline Vector2 clampv(Vector2 v, Vector2 a, Vector2 b) {
+    return maxv(a, minv(a, b));
+}
+
 struct Vector3 {
     union {
         struct {
@@ -1130,4 +1152,16 @@ inline bool are_intersecting(Rectangle2 a, Rectangle2 b) {
     int d3 = (a.y + a.height) < b.y;
     return !(d0 | d1 | d2 | d3);
 #endif
+}
+
+inline bool are_rect_and_circle_colliding(Rectangle2 rect, Vector2 position, float radius) {
+    float closest_x = position.x;
+    float closest_y = position.y;
+    clamp(&closest_x, rect.x, rect.x + rect.width);
+    clamp(&closest_y, rect.y, rect.y + rect.height);
+
+    float dx = position.x - closest_x;
+    float dy = position.y - closest_y;
+
+    return (dx * dx + dy * dy) <= (radius * radius);
 }

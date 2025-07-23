@@ -86,6 +86,16 @@ void update_single_hero(Hero *hero, float dt) {
     if (hero->position.x > world->size.x - hero->size.x) {
         hero->position.x = world->size.x - hero->size.x;
     }
+
+    Rectangle2 hero_rect = { hero->position.x, hero->position.y, hero->size.x, hero->size.y };
+    for (Projectile *projectile : world->by_type._Projectile) {
+        if (projectile->scheduled_for_destruction) continue;
+
+        if (are_rect_and_circle_colliding(hero_rect, projectile->position, projectile->radius)) {
+            damage_hero(hero, 0.5);
+            schedule_for_destruction(projectile);
+        }
+    }
     
     if (!hero->is_on_ground) {
         if (hero->velocity.y > 0.0f) {
@@ -144,6 +154,14 @@ void draw_single_hero(Hero *hero) {
 
     immediate_quad(left_eye_screen_space_position,  screen_space_eye_size, v4(1, 1, 1, 1));
     immediate_quad(right_eye_screen_space_position, screen_space_eye_size, v4(1, 1, 1, 1));
+}
+
+void damage_hero(Hero *hero, double damage_amount) {
+    hero->health -= damage_amount;
+    if (hero->health <= 0.0) {
+        hero->health = 0.0;
+        schedule_for_destruction(hero);
+    }
 }
 
 void update_single_enemy(Enemy *enemy, float dt) {

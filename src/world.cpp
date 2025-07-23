@@ -4,8 +4,11 @@
 #include "rendering.h"
 #include "tilemap.h"
 #include "camera.h"
+#include "font.h"
 
 #include "mt19937-64.h"
+
+#include <stdio.h>
 
 void init_world(World *world, Vector2i size) {
     unsigned long long init[] = {(u64)size.x, (u64)size.y};
@@ -101,13 +104,33 @@ void draw_world(World *world) {
         draw_single_projectile(projectile);
     }
     
-    assert(world->by_type._Hero);
     Hero *hero = world->by_type._Hero;
-    if (!hero->scheduled_for_destruction) {
+    if (hero && !hero->scheduled_for_destruction) {
         draw_single_hero(hero);
     }
 
     immediate_flush();
+
+    set_shader(globals.shader_text);
+    rendering_2d(globals.render_width, globals.render_height);
+
+    set_blend_mode(BLEND_MODE_ALPHA);
+    set_cull_mode(CULL_MODE_OFF);
+    set_depth_test_mode(DEPTH_TEST_OFF);
+    
+    int font_size = (int)(0.03f * globals.render_height);
+    Dynamic_Font *font = get_font_at_size("Inconsolata-Regular", font_size);
+    char text[256];
+    snprintf(text, sizeof(text), "Health: %.1lf", world->by_type._Hero ? world->by_type._Hero->health : 0.0);
+    int x = 0;
+    int y = globals.render_height - font->character_height;
+
+    Vector4 color = v4(0, 1, 0, 1);
+    if ((world->by_type._Hero && world->by_type._Hero->health <= 0.0) ||
+        !world->by_type._Hero) {
+        color = v4(1, 0, 0, 1);
+    }
+    draw_text(font, text, x, y, color);
 }
 
 Vector2 world_space_to_screen_space(World *world, Vector2 v) {
