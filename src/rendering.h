@@ -64,6 +64,8 @@ void immediate_quad(Vector2 p0, Vector2 p1, Vector2 p2, Vector2 p3, Vector2 uv0,
 void immediate_quad(Vector2 p0, Vector2 p1, Vector2 p2, Vector2 p3, Vector4 color);
 void immediate_quad(float x, float y, float w, float h, Vector4 color);
 void immediate_quad(Vector2 position, Vector2 size, Vector4 color);
+void immediate_triangle(Vector2 p0, Vector2 p1, Vector2 p2, Vector4 color);
+void immediate_circle(Vector2 center, float radius, Vector4 color);
 
 struct Shader;
 Shader *make_shader();

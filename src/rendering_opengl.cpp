@@ -365,6 +365,39 @@ void immediate_quad(Vector2 position, Vector2 size, Vector4 color) {
     immediate_quad(position.x, position.y, size.x, size.y, color);
 }
 
+void immediate_triangle(Vector2 p0, Vector2 p1, Vector2 p2, Vector4 color) {
+    if (num_immediate_vertices + 6 > MAX_IMMEDIATE_VERTICES) immediate_flush();
+
+    auto v = immediate_vertices + num_immediate_vertices;
+
+    Vector2 uv = v2(0, 0);
+    
+    put_vertex(&v[0], p0, color, uv);
+    put_vertex(&v[1], p1, color, uv);
+    put_vertex(&v[2], p2, color, uv);
+
+    num_immediate_vertices += 3;
+}
+
+void immediate_circle(Vector2 center, float radius, Vector4 color) {
+    const int NUM_TRIANGLES = 100;
+    float dtheta = TAU / (float)NUM_TRIANGLES;
+
+    for (int i = 0; i < NUM_TRIANGLES; i++) {
+        float theta0 = i * dtheta;
+        float theta1 = (i+1) * dtheta;
+
+        Vector2 v0 = get_vec2(theta0);
+        Vector2 v1 = get_vec2(theta1);
+
+        Vector2 p0 = center;
+        Vector2 p1 = center + radius * v0;
+        Vector2 p2 = center + radius * v1;
+
+        immediate_triangle(p0, p1, p2, color);
+    }
+}
+
 Shader *make_shader() {
     return (Shader *)malloc(sizeof(Shader));
 }

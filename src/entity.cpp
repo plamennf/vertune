@@ -145,3 +145,52 @@ void draw_single_hero(Hero *hero) {
     immediate_quad(left_eye_screen_space_position,  screen_space_eye_size, v4(1, 1, 1, 1));
     immediate_quad(right_eye_screen_space_position, screen_space_eye_size, v4(1, 1, 1, 1));
 }
+
+void update_single_enemy(Enemy *enemy, float dt) {
+    World *world = enemy->world;
+    assert(world);
+
+    Tilemap *tilemap = world->tilemap;
+    assert(tilemap);
+
+    Vector2 move_dir = v2(0, 0);
+    if (enemy->is_facing_right) move_dir.x = +1.0f;
+    else                        move_dir.x = -1.0f;
+    
+    Vector2 new_position = enemy->position + move_dir * enemy->speed * dt;
+    new_position.x -= 0.5f;
+    new_position.y -= 0.5f;
+    
+    if (!enemy->is_facing_right) {
+        u8 tile1_id = get_tile_id_at(tilemap, v2(new_position.x, enemy->position.y));
+        u8 tile2_id = get_tile_id_at(tilemap, v2(new_position.x, enemy->position.y + enemy->size.y * 0.9f));
+        if (is_tile_id_collidable(tilemap, tile1_id) || is_tile_id_collidable(tilemap, tile2_id)) {
+            new_position.x = (int)new_position.x + 1.0f;
+            enemy->is_facing_right = true;
+        }
+    } else {
+        u8 tile1_id = get_tile_id_at(tilemap, v2(new_position.x + enemy->size.x, enemy->position.y));
+        u8 tile2_id = get_tile_id_at(tilemap, v2(new_position.x + enemy->size.x, enemy->position.y + enemy->size.y * 0.9f));
+        if (is_tile_id_collidable(tilemap, tile1_id) || is_tile_id_collidable(tilemap, tile2_id)) {
+            new_position.x = static_cast <float>((int)new_position.x);
+            enemy->is_facing_right = false;
+        }
+
+        if (new_position.x > world->size.x - enemy->radius * 2.0f) {
+            new_position.x = world->size.x - enemy->radius * 2.0f;
+            enemy->is_facing_right = false;
+        }
+    }
+
+    enemy->position = new_position + v2(0.5f, 0.5f);
+}
+
+void draw_single_enemy(Enemy *enemy) {
+    World *world = enemy->world;
+    assert(world);
+
+    Vector2 screen_space_position = world_space_to_screen_space(world, enemy->position);
+    Vector2 screen_space_size     = world_space_to_screen_space(world, v2(0, enemy->radius));
+
+    immediate_circle(screen_space_position, screen_space_size.y, enemy->color);
+}

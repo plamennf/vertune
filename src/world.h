@@ -7,9 +7,11 @@ struct Entity;
 struct Hero;
 struct Tilemap;
 struct Camera;
+struct Enemy;
 
 struct Entities_By_Type {
     Hero *_Hero = NULL;
+    Array <Enemy *> _Enemy;
 };
 
 struct World {
@@ -33,3 +35,4 @@ Vector2 screen_space_to_world_space(World *world, Vector2 v);
 Entity *get_entity_by_id(World *world, u64 id);
 
 Hero *make_hero(World *world);
+Enemy *make_enemy(World *world);

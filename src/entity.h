@@ -5,6 +5,7 @@ struct World;
 enum Entity_Type {
     ENTITY_TYPE_UNKNOWN,
     ENTITY_TYPE_HERO,
+    ENTITY_TYPE_ENEMY,
 };
 
 struct Entity {
@@ -33,3 +34,12 @@ struct Hero : public Entity {
 
 void update_single_hero(Hero *hero, float dt);
 void draw_single_hero(Hero *hero);
+
+struct Enemy : public Entity {
+    float speed = 5.0f;
+    bool is_facing_right = true;
+    float radius = 0.5f;
+};
+
+void update_single_enemy(Enemy *enemy, float dt);
+void draw_single_enemy(Enemy *enemy);

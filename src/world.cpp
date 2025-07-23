@@ -16,6 +16,10 @@ void init_world(World *world, Vector2i size) {
 }
 
 void update_world(World *world, float dt) {
+    for (Enemy *enemy : world->by_type._Enemy) {
+        update_single_enemy(enemy, dt);
+    }
+    
     if (world->by_type._Hero) {
         update_single_hero(world->by_type._Hero, dt);
     }
@@ -40,6 +44,10 @@ void draw_world(World *world) {
 
     assert(world->tilemap);
     draw_tilemap(world->tilemap, world);
+
+    for (Enemy *enemy : world->by_type._Enemy) {
+        draw_single_enemy(enemy);
+    }
     
     assert(world->by_type._Hero);
     Hero *hero = world->by_type._Hero;
@@ -109,7 +117,16 @@ Hero *make_hero(World *world) {
     Hero *hero = new Hero();
 
     world->by_type._Hero = hero;
-    
     register_entity(world, hero, ENTITY_TYPE_HERO);
+
     return hero;
+}
+
+Enemy *make_enemy(World *world) {
+    Enemy *enemy = new Enemy();
+
+    world->by_type._Enemy.add(enemy);
+    register_entity(world, enemy, ENTITY_TYPE_ENEMY);
+    
+    return enemy;
 }

@@ -120,17 +120,21 @@ static void init_test_world() {
         exit(1);
     }
     
-    Hero *hero = make_hero(globals.current_world);
+    Hero *hero     = make_hero(globals.current_world);
     hero->position = v2(0, 1);
     hero->size     = v2(1, 1);
     hero->color    = v4(1, 0, 1, 1);
 
-    globals.current_world->camera = new Camera();
+    globals.current_world->camera                 = new Camera();
     globals.current_world->camera->position       = v2(0, 0);
     globals.current_world->camera->target         = v2(0, 0);
     globals.current_world->camera->following_id   = hero->id;
     globals.current_world->camera->dead_zone_size = v2(VIEW_AREA_WIDTH, VIEW_AREA_HEIGHT) * 0.1f;
     globals.current_world->camera->smooth_factor  = 0.95f;
+
+    Enemy *enemy    = make_enemy(globals.current_world);
+    enemy->position = v2(10, 1.5f);
+    enemy->color    = v4(1, 1, 1, 1);
 }
 
 static void respond_to_input() {
