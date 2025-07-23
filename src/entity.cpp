@@ -73,7 +73,7 @@ void update_single_hero(Hero *hero, float dt) {
         for (Enemy *enemy : world->by_type._Enemy) {
             Rectangle2 hero_rect = { hero->position.x, hero->position.y, hero->size.x, hero->size.y };
             Rectangle2 enemy_rect = { enemy->position.x, enemy->position.y, enemy->size.x, enemy->size.y };
-            if (are_intersecting(hero_rect, enemy_rect)) {
+            if (are_intersecting(hero_rect, enemy_rect) && !hero->is_on_ground) {
                 schedule_for_destruction(enemy);
                 new_position.y = (int)new_position.y + 1.0f;
                 hero->velocity.y = JUMP_FORCE * 1.5f;
