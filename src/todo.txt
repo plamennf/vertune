@@ -2,4 +2,6 @@ Ideas for enemies:
 - One-eyed circles that periodically shoot lasers from their eyes.
 
 TODO:
-- Add pickups(coins).
+- Add audio.
+- Add game icon.
+- Add more content.

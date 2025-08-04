@@ -3,7 +3,13 @@
 #include "resource_manager.h"
 #include "font.h"
 
+enum Menu_Page {
+    MENU_PAGE_MAIN,
+    MENU_PAGE_CONTROLS,
+};
+
 static int current_menu_choice = 0;
+static Menu_Page current_menu_page = MENU_PAGE_MAIN;
 
 static bool asking_for_restart_confirmation = false;
 static bool asking_for_quit_confirmation = false;
@@ -23,6 +29,7 @@ static int num_menu_items_drawn = 0;
 void toggle_menu() {
     if (globals.program_mode == PROGRAM_MODE_MAIN_MENU) {
         globals.program_mode = PROGRAM_MODE_GAME;
+        current_menu_page = MENU_PAGE_MAIN;
     } else if (globals.program_mode == PROGRAM_MODE_GAME) {
         globals.program_mode = PROGRAM_MODE_MAIN_MENU;
     }
@@ -48,7 +55,7 @@ static void handle_enter() {
     if (choice == index_resume) {
         toggle_menu();
     } else if (choice == index_controls) {
-        
+        current_menu_page = MENU_PAGE_CONTROLS;
     } else if (choice == index_restart) {
         if (asking_for_restart_confirmation) {
             switch_to_first_world();
@@ -93,7 +100,7 @@ static int draw_item(char *text, Dynamic_Font *font, int center_x, int y, Vector
 
 static void draw_menu_choices() {
     int BIG_FONT_SIZE = (int)(globals.render_height * 0.0725f);
-    auto body_font  = get_font_at_size("KarminaBold", (int)(BIG_FONT_SIZE * 0.9f));
+    auto body_font    = get_font_at_size("KarminaBold", (int)(BIG_FONT_SIZE * 0.9f));
     
     set_shader(globals.shader_text);
     rendering_2d(globals.render_width, globals.render_height);
@@ -164,11 +171,73 @@ static void draw_title() {
     draw_text(font, text, x, y, v4(1, 1, 1, 1));
 }
 
+static void draw_pair(char *pair_a, char *pair_b, Dynamic_Font *font, int cursor_y) {
+    char *text = pair_a;
+    int x = 0;
+    int y = cursor_y;
+    draw_text(font, text, x, y, v4(1, 1, 1, 1));
+
+    text = pair_b;
+    x = globals.render_width - font->get_string_width_in_pixels(text);
+    draw_text(font, text, x, y, v4(1, 1, 1, 1));
+}
+
+static void draw_controls() {
+    int BIG_FONT_SIZE = (int)(globals.render_height * 0.0725f);
+    auto title_font   = get_font_at_size("KarminaBoldItalic", (int)(BIG_FONT_SIZE * 1.6f));
+    auto body_font    = get_font_at_size("KarminaBold", (int)(BIG_FONT_SIZE * 0.9f));
+
+    set_shader(globals.shader_text);
+    rendering_2d(globals.render_width, globals.render_height);
+
+    set_blend_mode(BLEND_MODE_ALPHA);
+    set_cull_mode(CULL_MODE_OFF);
+    set_depth_test_mode(DEPTH_TEST_OFF);
+
+    Dynamic_Font *font = body_font;
+    char *text = "Controls";
+    int x = (globals.render_width - font->get_string_width_in_pixels(text)) / 2;
+    int y = globals.render_height - (int)(font->character_height * 1.5f);
+    draw_text(font, text, x, y, v4(1, 1, 1, 1));
+
+    struct Control_Pair {
+        char *a;
+        char *b;
+    };
+
+    Control_Pair pairs[] = {
+        { "Move Left", "A" },
+        { "Move Right", "D" },
+        { "Jump", "W" },
+    };
+
+    int cursor_y = (int)(globals.render_height * 0.62);
+    int stride = (int)(1.4f * font->character_height);
+    
+    for (int i = 0; i < ArrayCount(pairs); i++) {
+        auto pair = pairs[i];
+
+        draw_pair(pair.a, pair.b, body_font, cursor_y);
+        cursor_y -= stride;
+    }
+}
+
 void draw_main_menu() {
     clear_framebuffer(0, 0.3f, 0.4f, 1);
 
-    draw_title();
-    draw_menu_choices();
+    switch (current_menu_page) {
+        case MENU_PAGE_MAIN: {
+            draw_title();
+            draw_menu_choices();
+        } break;
+
+        case MENU_PAGE_CONTROLS: {
+            draw_controls();
+            if (is_key_pressed(KEY_ESCAPE)) {
+                current_menu_page = MENU_PAGE_MAIN;
+            }
+        } break;
+    }
 
     if (is_key_pressed(KEY_UP_ARROW))   advance_menu_choice(-1);
     if (is_key_pressed(KEY_DOWN_ARROW)) advance_menu_choice(+1);

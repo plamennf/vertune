@@ -175,7 +175,8 @@ static void respond_to_input() {
 
                 if (globals.program_mode == PROGRAM_MODE_END) {
                     if (event.key_pressed) {
-                        globals.should_quit_game = true;
+                        globals.program_mode = PROGRAM_MODE_MAIN_MENU;
+                        switch_to_first_world();
                     }
                 }
             } break;
