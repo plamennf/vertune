@@ -77,6 +77,16 @@ struct Array {
     int find(T const &item);
     void ordered_remove_by_index(int n);
 
+    inline void deallocate() {
+        if (data) {
+            free(data);
+            data = NULL;
+        }
+
+        allocated = 0;
+        count = 0;
+    }
+    
     inline void ordered_remove_by_value(T const &value) {
         int index = find(value);
         if (index != -1) {

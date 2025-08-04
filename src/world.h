@@ -38,6 +38,7 @@ struct World {
 void init_world(World *world, Vector2i size);
 void update_world(World *world, float dt);
 void draw_world(World *world);
+void destroy_world(World *world);
 
 bool load_world_from_file(World *world, char *filepath);
 

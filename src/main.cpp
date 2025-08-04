@@ -180,6 +180,41 @@ static void respond_to_input() {
     globals.window_resizes.count = 0;
 }
 
+bool switch_to_world(char *world_name) {
+    if (globals.current_world) {
+        destroy_world(globals.current_world);
+        delete globals.current_world;
+        globals.current_world = NULL;
+    }
+
+    char full_path[1024];
+    snprintf(full_path, sizeof(full_path), "data/worlds/%s.wrld", world_name);
+    
+    globals.current_world = new World();
+    if (!load_world_from_file(globals.current_world, full_path)) {
+        delete globals.current_world;
+        globals.current_world = NULL;
+        return false;
+    }
+
+    return true;
+}
+
+void switch_to_next_world() {
+    int next_world_index = globals.current_world_index + 1;
+    if (next_world_index >= globals.world_names.count) {
+        // TODO: Show end of game screen.
+        return;
+    }
+
+    char *world_name = globals.world_names[next_world_index];
+    if (!switch_to_world(world_name)) {
+        exit(1);
+    }
+
+    globals.current_world_index = next_world_index;
+}
+
 int main(int argc, char *argv[]) {
     os_init();
 
@@ -193,22 +228,30 @@ int main(int argc, char *argv[]) {
     init_framebuffer();
 
     //init_test_world();
-    globals.current_world = new World();
-    if (!load_world_from_file(globals.current_world, "data/worlds/test.wrld")) {
-        return 1;
-    }
+    //globals.current_world = new World();
+    //if (!load_world_from_file(globals.current_world, "data/worlds/test.wrld")) {
+    //return 1;
+    //}
+
+    globals.world_names.add("test");
+    globals.world_names.add("test1");
+    switch_to_next_world();
     
     globals.time_info.last_time = os_get_time_nanoseconds();
     u64 last_time = os_get_time_nanoseconds();
     while (!globals.should_quit_game) {
+        if (globals.should_switch_worlds) {
+            switch_to_next_world();
+        }
+        
         update_time();
-
+        
         for (int i = 0; i < ArrayCount(key_states); i++) {
             Key_State *state = &key_states[i];
             state->was_down  = state->is_down;
             state->changed   = false;
         }
-        
+
         os_update_window_events();
         respond_to_input();
         

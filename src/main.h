@@ -52,6 +52,10 @@ struct Global_Variables {
     Matrix4 object_to_world_matrix;
     
     World *current_world = NULL;
+
+    Array <char *> world_names;
+    int current_world_index = -1;
+    bool should_switch_worlds = false;
 };
 
 extern Global_Variables globals;
@@ -59,3 +63,6 @@ extern Global_Variables globals;
 bool is_key_down(int key_code);
 bool is_key_pressed(int key_code);
 bool was_key_just_released(int key_code);
+
+bool switch_to_world(char *world_name);
+void switch_to_next_world();

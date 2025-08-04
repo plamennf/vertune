@@ -168,6 +168,36 @@ void draw_world(World *world) {
     draw_text(font, text, x, y, color);
 }
 
+void destroy_world(World *world) {
+    if (world->camera) {
+        delete world->camera;
+        world->camera = NULL;
+    }
+
+    if (world->tilemap) {
+        delete world->tilemap;
+        world->tilemap = NULL;
+    }
+
+    world->num_pickups_needed_to_unlock_door = 0;
+
+    world->entities_to_be_destroyed.deallocate();
+
+    for (int i = 0; i < world->all_entities.count; i++) {
+        delete world->all_entities[i];
+        world->all_entities[i] = NULL;
+    }
+    world->all_entities.deallocate();
+
+    world->entity_lookup.deallocate();
+
+    world->by_type._Hero = NULL;
+    world->by_type._Door = NULL;
+    world->by_type._Enemy.deallocate();
+    world->by_type._Projectile.deallocate();
+    world->by_type._Pickup.deallocate();
+}
+
 Vector2 world_space_to_screen_space(World *world, Vector2 v) {
     assert(world->size.x > 0);
     assert(world->size.y > 0);

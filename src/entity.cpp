@@ -139,6 +139,16 @@ void update_single_hero(Hero *hero, float dt) {
             schedule_for_destruction(pickup);
         }
     }
+
+    if (world->by_type._Door && !world->by_type._Door->scheduled_for_destruction) {
+        Door *door = world->by_type._Door;
+        
+        Rectangle2 door_rect = { door->position.x, door->position.y, door->size.x, door->size.y };
+        if (are_intersecting(hero_rect, door_rect)) {
+            //switch_to_next_world();
+            globals.should_switch_worlds = true;
+        }
+    }
     
     if (!hero->is_on_ground) {
         if (hero->velocity.y > 0.0f) {
