@@ -222,52 +222,91 @@ static void generate_random_level(World *world, int level_width, int level_heigh
         tilemap->tiles[ground_y * level_width + x] = 1;
     }
 
+    float max_jump_height = (JUMP_FORCE * JUMP_FORCE / (-2.0f * GRAVITY));
+    
+    struct Platform {
+        int x_start;
+        int x_end;
+        int y;
+    };
+    Array <Platform> platforms;
+
+    int last_x = 0;
+    int last_y = 2;
+    int min_platform_length = 3;
+    int max_platform_length = 6;
+    int min_gap = 2;
+    int max_gap = 4;
+    bool first_platform = true;
+    
+    while (last_x < level_width - 6) {
+        int gap = min_gap + rand() % (max_gap - min_gap + 1);
+        int plat_length = min_platform_length + rand() % (max_platform_length - min_platform_length + 1);
+
+        int y = 2;
+        if (first_platform) {
+            first_platform = false;
+        } else {
+            int max_y = last_y + (int)max_jump_height;
+            int min_y = Max(2, last_y - (int)max_jump_height);
+            y = min_y + rand() % (max_y - min_y + 1);
+        }
+
+        int x_start = last_x + gap;
+        int x_end = x_start + plat_length;
+        if (x_end >= level_width - 3) x_end = level_width - 4;
+
+        for (int x = x_start; x<= x_end; x++) {
+            tilemap->tiles[y * level_width + x] = 1;
+        }
+
+        platforms.add({x_start, x_end, y});
+        last_x = x_end;
+        last_y = y;
+    }
+
+    int door_platform_length = 3;
+    int door_y = platforms[platforms.count - 1].y + 2 + rand() % (int)max_jump_height;
+    int door_x_start = level_width - door_platform_length;
+    int door_x_end = level_width;
+
+    for (int x = door_x_start; x <= door_x_end; x++) {
+        tilemap->tiles[door_y * level_width + x] = 1;
+    }
+
+    platforms.add({door_x_start, door_x_end, door_y});
+    
     Hero *hero = make_hero(world);
     hero->position = v2(1, ground_y + 1.0f);
     hero->size     = v2(1, 1);
 
-    int last_platform_end_x = 0;
-    int last_platform_y = ground_y;
+    for (int i = 0; i < platforms.count - 1; i++) {
+        Platform plat = platforms[i];
+        int num_coins = 1 + rand() % 2;
 
-    while (last_platform_end_x < level_width - 5) {
-        int gap = 2 + rand() % 3;
-        int platform_width = 3 + rand() % 3;
-        int platform_y = last_platform_y + (rand() % 3 - 1);
+        for (int i = 0; i < num_coins; i++) {
+            float coin_x = plat.x_start + 0.5f + rand() % (plat.x_end - plat.x_start + 1);
+            float coin_y = plat.y + 3.5f;
 
-        if (platform_y < 3) platform_y = 3;
-        if (platform_y > level_height - 4) platform_y = level_height;
+            bool boost_coin = (rand() % 3 == 0);
+            if (boost_coin) {
+                coin_y = plat.y + max_jump_height + 1.0f + rand() % 2;
 
-        int start_x = last_platform_end_x + gap;
-        if (start_x + platform_width >= level_width - 1) {
-            platform_width = level_width - 1 - start_x;
-        }
+                Enemy *enemy    = make_enemy(world);
+                enemy->position = v2(coin_x, plat.y + 1.5f);
+                enemy->color    = v4(0, 0, 1, 1);
+                enemy->radius   = 0.5f;
+            }
 
-        for (int x = start_x; x < start_x + platform_width; x++) {
-            tilemap->tiles[platform_y * level_width + x] = 1;
-        }
-
-        if (rand() % 2 == 0) {
             Pickup *pickup = make_pickup(world);
-            pickup->position = v2((float)(start_x + platform_width * 0.5f) + 0.5f,
-                                  (float)platform_y + 1.5f);
+            pickup->position = v2(coin_x, coin_y);
             pickup->color    = v4(1, 1, 0, 1);
             pickup->radius   = 0.5f;
         }
-
-        if (rand() % 3 == 0) {
-            Enemy *enemy    = make_enemy(world);
-            enemy->position = v2((float)(start_x + platform_width * 0.5f) + 0.5f,
-                                 (float)platform_y + 1.5f);
-            enemy->color    = v4(0, 0, 1, 1);
-            enemy->radius   = 0.5f;
-        }
-
-        last_platform_end_x = start_x + platform_width;
-        last_platform_y = platform_y;
     }
-    
+        
     Door *door = make_door(world);
-    door->position = v2((float)(last_platform_end_x - 1.0f), (float)last_platform_y + 1.0f);
+    door->position = v2(door_x_start + 2.0f, door_y + 1.0f);
     door->size     = v2(1, 2);
     door->locked   = true;
 
