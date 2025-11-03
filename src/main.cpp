@@ -177,7 +177,7 @@ static void respond_to_input() {
                 if (globals.program_mode == PROGRAM_MODE_END) {
                     if (event.key_pressed) {
                         globals.program_mode = PROGRAM_MODE_MAIN_MENU;
-                        switch_to_first_world();
+                        switch_to_random_world(globals.start_level_width);
                     }
                 }
             } break;
@@ -195,47 +195,105 @@ static void respond_to_input() {
     globals.window_resizes.count = 0;
 }
 
-bool switch_to_world(char *world_name) {
+static void generate_random_level(World *world, int level_width, int level_height) {
+    if (!world) return;
+
+    if (!world->tilemap) {
+        world->tilemap = new Tilemap();
+    }
+
+    Tilemap *tilemap = world->tilemap;
+    tilemap->width   = level_width;
+    tilemap->height  = level_height;
+
+    tilemap->tiles = new u8[level_width * level_height];
+    memset(tilemap->tiles, 0, level_width * level_height);
+
+    tilemap->num_collidable_ids = 1;
+    tilemap->collidable_ids = new u8[tilemap->num_collidable_ids];
+    tilemap->collidable_ids[0] = 1;
+
+    tilemap->num_colors = 1;
+    tilemap->colors = new Vector4[tilemap->num_colors];
+    tilemap->colors[0] = v4(1, 1, 1, 1);
+
+    int ground_y = 0;
+    for (int x = 0; x < level_width; x++) {
+        tilemap->tiles[ground_y * level_width + x] = 1;
+    }
+
+    Hero *hero = make_hero(world);
+    hero->position = v2(1, ground_y + 1.0f);
+    hero->size     = v2(1, 1);
+
+    int last_platform_end_x = 0;
+    int last_platform_y = ground_y;
+
+    while (last_platform_end_x < level_width - 5) {
+        int gap = 2 + rand() % 3;
+        int platform_width = 3 + rand() % 3;
+        int platform_y = last_platform_y + (rand() % 3 - 1);
+
+        if (platform_y < 3) platform_y = 3;
+        if (platform_y > level_height - 4) platform_y = level_height;
+
+        int start_x = last_platform_end_x + gap;
+        if (start_x + platform_width >= level_width - 1) {
+            platform_width = level_width - 1 - start_x;
+        }
+
+        for (int x = start_x; x < start_x + platform_width; x++) {
+            tilemap->tiles[platform_y * level_width + x] = 1;
+        }
+
+        if (rand() % 2 == 0) {
+            Pickup *pickup = make_pickup(world);
+            pickup->position = v2((float)(start_x + platform_width * 0.5f) + 0.5f,
+                                  (float)platform_y + 1.5f);
+            pickup->color    = v4(1, 1, 0, 1);
+            pickup->radius   = 0.5f;
+        }
+
+        if (rand() % 3 == 0) {
+            Enemy *enemy    = make_enemy(world);
+            enemy->position = v2((float)(start_x + platform_width * 0.5f) + 0.5f,
+                                 (float)platform_y + 1.5f);
+            enemy->color    = v4(0, 0, 1, 1);
+            enemy->radius   = 0.5f;
+        }
+
+        last_platform_end_x = start_x + platform_width;
+        last_platform_y = platform_y;
+    }
+    
+    Door *door = make_door(world);
+    door->position = v2((float)(last_platform_end_x - 1.0f), (float)last_platform_y + 1.0f);
+    door->size     = v2(1, 2);
+    door->locked   = true;
+
+    world->num_pickups_needed_to_unlock_door = (int)world->by_type._Pickup.count;
+}
+
+bool switch_to_random_world(int total_width) {
     if (globals.current_world) {
         destroy_world(globals.current_world);
         delete globals.current_world;
         globals.current_world = NULL;
     }
 
-    char full_path[1024];
-    snprintf(full_path, sizeof(full_path), "data/worlds/%s.wrld", world_name);
-    
     globals.current_world = new World();
-    if (!load_world_from_file(globals.current_world, full_path)) {
-        delete globals.current_world;
-        globals.current_world = NULL;
-        return false;
-    }
+    init_world(globals.current_world, v2i(total_width, 18));
+
+    generate_random_level(globals.current_world, total_width, 18);
+
+    globals.current_world->camera                 = new Camera();
+    globals.current_world->camera->position       = v2(total_width * 0.5f, 9);
+    globals.current_world->camera->target         = v2(0, 0);
+    globals.current_world->camera->following_id   = globals.current_world->by_type._Hero->id;
+    globals.current_world->camera->dead_zone_size = v2(VIEW_AREA_WIDTH, VIEW_AREA_HEIGHT) * 0.1f;
+    globals.current_world->camera->smooth_factor  = 0.95f;
 
     return true;
-}
-
-void switch_to_next_world() {
-    int next_world_index = globals.current_world_index + 1;
-    if (next_world_index >= globals.world_names.count) {
-        globals.program_mode = PROGRAM_MODE_END;
-        return;
-    }
-
-    char *world_name = globals.world_names[next_world_index];
-    if (!switch_to_world(world_name)) {
-        exit(1);
-    }
-
-    globals.current_world_index = next_world_index;
-}
-
-void switch_to_first_world() {
-    if (!switch_to_world(globals.world_names[0])) {
-        exit(1);
-    }
-    
-    globals.current_world_index = 0;
 }
 
 static void draw_end_screen() {
@@ -263,6 +321,7 @@ static void draw_end_screen() {
 
 int main(int argc, char *argv[]) {
     os_init();
+    srand((u32)os_get_time_nanoseconds());
 
     globals.window_width  = 1600;
     globals.window_height = 900;
@@ -274,24 +333,16 @@ int main(int argc, char *argv[]) {
     init_framebuffer();
     init_audio();
     defer { destroy_audio(); };
-    
-    //init_test_world();
-    //globals.current_world = new World();
-    //if (!load_world_from_file(globals.current_world, "data/worlds/test.wrld")) {
-    //return 1;
-    //}
 
-    globals.world_names.add("test");
-    globals.world_names.add("test1");
-    switch_to_next_world();
-
-    //Audio_Handle handle = play_wav("data/sounds/button1.wav");
+    int current_level_width = globals.start_level_width;
+    switch_to_random_world(current_level_width);
     
     globals.time_info.last_time = os_get_time_nanoseconds();
     u64 last_time = os_get_time_nanoseconds();
     while (!globals.should_quit_game) {
         if (globals.should_switch_worlds) {
-            switch_to_next_world();
+            current_level_width += 30;
+            switch_to_random_world(current_level_width);
             globals.should_switch_worlds = false;
         }
         

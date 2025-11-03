@@ -58,7 +58,8 @@ static void handle_enter() {
         current_menu_page = MENU_PAGE_CONTROLS;
     } else if (choice == index_restart) {
         if (asking_for_restart_confirmation) {
-            switch_to_first_world();
+            //switch_to_first_world();
+            switch_to_random_world(globals.start_level_width);
             toggle_menu();
         }
         else asking_for_restart_confirmation = true;

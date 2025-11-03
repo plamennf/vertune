@@ -60,9 +60,10 @@ struct Global_Variables {
     
     World *current_world = NULL;
 
-    Array <char *> world_names;
-    int current_world_index = -1;
     bool should_switch_worlds = false;
+    int num_worlds_completed = 0;
+    int num_worlds_needed_to_complete_the_game = 10;
+    int start_level_width = 30;
 };
 
 extern Global_Variables globals;
@@ -79,3 +80,4 @@ void switch_to_first_world();
 void switch_to_next_world();
 
 void toggle_menu();
+bool switch_to_random_world(int total_width);

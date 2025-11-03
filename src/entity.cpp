@@ -231,35 +231,56 @@ void update_single_enemy(Enemy *enemy, float dt) {
     Vector2 new_position = enemy->position + move_dir * enemy->speed * dt;
     new_position.x -= 0.5f;
     new_position.y -= 0.5f;
-    
+
+    float front_x = new_position.x;
+    if (!enemy->is_facing_right) {
+        front_x -= 0.1f;
+    } else {
+        front_x += enemy->radius * 2.0f + 0.1f;
+    }
+    float foot_y  = new_position.y - 0.1f;
+    u8 tile_below = get_tile_id_at(tilemap, v2(front_x, foot_y));
+
+    bool will_fall = !is_tile_id_collidable(tilemap, tile_below);
+
+    bool hitting_wall = false;
     if (!enemy->is_facing_right) {
         u8 tile1_id = get_tile_id_at(tilemap, v2(new_position.x, enemy->position.y));
         u8 tile2_id = get_tile_id_at(tilemap, v2(new_position.x, enemy->position.y + enemy->radius * 0.9f));
         if (is_tile_id_collidable(tilemap, tile1_id) || is_tile_id_collidable(tilemap, tile2_id)) {
-            new_position.x = (int)new_position.x + 1.0f;
-            enemy->is_facing_right = true;
+            hitting_wall = true;
         }
 
         if (new_position.x < 0.0f) {
-            new_position.x = (int)new_position.x + 1.0f;
-            enemy->is_facing_right = true;
+            hitting_wall = true;
         }
     } else {
-        u8 tile1_id = get_tile_id_at(tilemap, v2(new_position.x + enemy->radius, enemy->position.y));
-        u8 tile2_id = get_tile_id_at(tilemap, v2(new_position.x + enemy->radius, enemy->position.y + enemy->radius * 0.9f));
+#if 0
+        u8 tile1_id = get_tile_id_at(tilemap, v2(new_position.x + enemy->radius * 2.0f, enemy->position.y));
+        u8 tile2_id = get_tile_id_at(tilemap, v2(new_position.x + enemy->radius * 2.0f, enemy->position.y + enemy->radius * 0.9f));
+#else
+        u8 tile1_id = get_tile_id_at(tilemap, v2(new_position.x + enemy->radius * 2.0f, new_position.y));
+        u8 tile2_id = get_tile_id_at(tilemap, v2(new_position.x + enemy->radius * 2.0f, new_position.y + enemy->radius * 0.9f));
+#endif
         if (is_tile_id_collidable(tilemap, tile1_id) || is_tile_id_collidable(tilemap, tile2_id)) {
-            new_position.x = static_cast <float>((int)new_position.x);
-            enemy->is_facing_right = false;
+            hitting_wall = true;
         }
 
         if (new_position.x > world->size.x - enemy->radius * 2.0f) {
-            new_position.x = world->size.x - enemy->radius * 2.0f;
-            enemy->is_facing_right = false;
+            hitting_wall = true;
         }
     }
 
-    enemy->position = new_position + v2(0.5f, 0.5f);
-
+    if (will_fall || hitting_wall) {
+        if (!enemy->is_facing_right) {
+            enemy->is_facing_right = true;
+        } else {
+            enemy->is_facing_right = false;
+        }
+    } else {
+        enemy->position = new_position + v2(0.5f, 0.5f);
+    }
+    
     enemy->time_since_last_projectile += dt;
     if (enemy->time_since_last_projectile >= enemy->time_between_projectiles) {
         Vector2 projectile_position = enemy->position;

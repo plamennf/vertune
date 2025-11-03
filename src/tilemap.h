@@ -3,16 +3,16 @@
 struct World;
 
 struct Tilemap {
-    int width;
-    int height;
+    int width = 0;
+    int height = 0;
 
-    int num_colors;
-    Vector4 *colors;
+    int num_colors = 0;
+    Vector4 *colors = NULL;
 
-    int num_collidable_ids;
-    u8 *collidable_ids;
+    int num_collidable_ids = 0;
+    u8 *collidable_ids = NULL;
 
-    u8 *tiles;
+    u8 *tiles = NULL;
 };
 
 bool load_tilemap(Tilemap *tilemap, char *filepath);
