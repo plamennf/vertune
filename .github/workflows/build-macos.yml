@@ -42,13 +42,11 @@ jobs:
           rm -rf dist
           mkdir -p dist/${APP_NAME}.app/Contents/MacOS
           mkdir -p dist/${APP_NAME}.app/Contents/Resources
-
           cp build/vertune dist/${APP_NAME}.app/Contents/MacOS/vertune
           cp assets.pak dist/${APP_NAME}.app/Contents/Resources/
-
           cat <<EOF > dist/${APP_NAME}.app/Contents/Info.plist
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" 
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
   <dict>
@@ -70,21 +68,12 @@ jobs:
 </plist>
 EOF
 
-      - name: Code-sign .app (optional for distribution)
+      - name: Code-sign .app (optional)
         if: ${{ secrets.APPLE_ID && secrets.APP_SPECIFIC_PASSWORD }}
         run: |
           codesign --deep --force --options runtime \
             --sign "Developer ID Application: Your Name (TEAMID)" \
             dist/${APP_NAME}.app
-
-      - name: Notarize .app (optional for distribution)
-        if: ${{ secrets.APPLE_ID && secrets.APP_SPECIFIC_PASSWORD }}
-        run: |
-          xcrun altool --notarize-app \
-            --primary-bundle-id "${BUNDLE_ID}" \
-            --username "${{ secrets.APPLE_ID }}" \
-            --password "${{ secrets.APP_SPECIFIC_PASSWORD }}" \
-            --file dist/${APP_NAME}.app
 
       - name: Zip the app for distribution
         run: |
