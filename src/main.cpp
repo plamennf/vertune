@@ -9,6 +9,9 @@
 #include "main_menu.h"
 #include "audio.h"
 #include "packager/packager.h"
+#ifndef OS_WINDOWS
+#include "icon_data.h"
+#endif
 
 #include <stdio.h>
 
@@ -533,6 +536,7 @@ bool restart_current_world() {
     if (globals.num_restarts_for_current_world > MAX_RESTARTS) {
         globals.program_mode = PROGRAM_MODE_END;
         globals.current_fail_msg_index = rand() % ArrayCount(fail_msgs);
+        globals.highscores.add(globals.num_worlds_completed);
         play_sound(globals.level_fail_sfx);
         return true;
     }
@@ -615,10 +619,38 @@ static SDL_Window *create_window(int width, int height, char *title) {
         return NULL;
     }
 
+#ifndef OS_WINDOWS
+    SDL_RWops *rw = SDL_RWFromMem(icon_bmp, icon_bmp_len);
+    SDL_Surface *icon = SDL_LoadBMP_RW(rw, 1);
+    SDL_SetWindowIcon(window, icon);
+    SDL_FreeSurface(icon);
+#endif
+    
     return window;
 }
 
-int main(int argc, char *argv[]) {
+static void init_window_size(int *width, int *height) {
+    if (*width == -1 && *height == -1) {
+        SDL_Rect usable;
+        if (SDL_GetDisplayUsableBounds(0, &usable) == 0) {
+            int monitor_width  = usable.w;
+            int monitor_height = usable.h;
+
+            *width  = (int)(monitor_width  * 2.0 / 3.0);
+            *height = (int)(*width * (9.0 / 16.0));
+        } else {
+            // Fallback if SDL fails
+            *width  = 1280;
+            *height = 720;
+        }
+    } else if (*width == -1 && *height > 0) {
+        *width = (int)(*height * (16.0 / 9.0));
+    } else if (*width > 0 && *height == -1) {
+        *height = (int)(*width * (9.0 / 16.0));
+    }
+}
+
+int main(int argc, char *argv[]) {    
 #ifdef _WIN32
     void enable_dpi_awareness();
     enable_dpi_awareness();
@@ -626,6 +658,38 @@ int main(int argc, char *argv[]) {
 
     init_log();
     defer { close_log(); };
+
+    bool start_fullscreen = false;
+#ifdef BUILD_RELEASE
+    start_fullscreen = true;
+#endif
+
+    globals.window_width  = -1;
+    globals.window_height = -1;
+    
+    for (int i = 1; i < argc; i++) {
+        char *arg = argv[i];
+        if (strings_match(arg, "-width") || strings_match(arg, "-w")) {
+            if (i == argc - 1) {
+                logprintf("Tried to set window width but with no width provided!\n");
+                break;
+            } else {
+                globals.window_width = atoi(argv[++i]);
+            }
+        } else if (strings_match(arg, "-height") || strings_match(arg, "-h")) {
+            if (i == argc - 1) {
+                logprintf("Tried to set window height but with no height provided!\n");
+                break;
+            } else {
+                globals.window_height = atoi(argv[++i]);
+            }            
+        } else if (strings_match(arg, "-fullscreen") || strings_match(arg, "-f")) {
+            start_fullscreen = true;
+        } else if (strings_match(arg, "-windowed")) {
+            start_fullscreen = false;
+        }
+    }
+
     
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0) {
         logprintf("Failed to initialize SDL!\n");
@@ -635,9 +699,8 @@ int main(int argc, char *argv[]) {
     
     srand((u32)get_time_nanoseconds());
 
-    globals.window_width  = 1600;
-    globals.window_height = 900;
-    globals.window = create_window(globals.window_width, globals.window_height, "Platformer!");
+    init_window_size(&globals.window_width, &globals.window_height);
+    globals.window = create_window(globals.window_width, globals.window_height, "Vertune!");
     if (!globals.window) return 1;
     if (!init_rendering(globals.window, globals.should_vsync)) return 1;
     init_shaders();
@@ -645,12 +708,24 @@ int main(int argc, char *argv[]) {
     init_audio();
     defer { destroy_audio(); };
 
+    if (start_fullscreen) {
+        toggle_fullscreen(globals.window);
+    }
+
     if (!load_audio_settings()) {
         globals.master_volume = 0.5f;
         globals.music_volume = 1.0f;
         globals.sfx_volume = 1.0f;
     }
 
+#ifdef BUILD_DEBUG
+    for (int i = 0; i < 10; i++) {
+        globals.highscores.add(100);
+    }
+#else
+    load_highscores();
+#endif
+    
 #ifdef USE_PACKAGE
     if (!read_package(&globals.package)) {
         return 1;
@@ -782,6 +857,7 @@ int main(int argc, char *argv[]) {
     }
 
     save_audio_settings();
+    save_highscores();
 
 #ifdef BUILD_DEBUG
     create_package();
@@ -905,6 +981,65 @@ bool load_audio_settings() {
 
     fread(&globals.sfx_volume, sizeof(float), 1, file);
     clamp(&globals.sfx_volume, 0.0f, 1.0f);
+
+    return true;
+}
+
+bool save_highscores() {
+    FILE *file = fopen("hiscores.dat", "wb");
+    if (!file) {
+        logprintf("Failed to open 'hiscores.dat' for writing!\n");
+        return false;
+    }
+    defer { fclose(file); };
+
+    fwrite(&HIGHSCORE_FILE_MAGIC_NUMBER, sizeof(int), 1, file);
+    fwrite(&HIGHSCORE_FILE_VERSION, sizeof(int), 1, file);
+    fwrite(&globals.highscores.count, sizeof(int), 1, file);
+    for (int i = 0; i < globals.highscores.count; i++) {
+        fwrite(&globals.highscores[i], sizeof(int), 1, file);
+    }
+
+    return true;
+}
+
+bool load_highscores() {
+    FILE *file = fopen("hiscores.dat", "rb");
+    if (!file) {
+        logprintf("Failed to open 'hiscores.dat' for reading!\n");
+        return false;
+    }
+    defer { fclose(file); };
+
+    int magic_number;
+    fread(&magic_number, sizeof(int), 1, file);
+    if (magic_number != HIGHSCORE_FILE_MAGIC_NUMBER) {
+        logprintf("Invalid magic number for 'hiscores.dat'\n");
+        return false;
+    }
+
+    int version;
+    fread(&version, sizeof(int), 1, file);
+    if (version <= 0 || version > HIGHSCORE_FILE_VERSION) {
+        logprintf("Invalid version for 'hiscores.dat'\n");
+        return false;
+    }
+
+    int num_highscores;
+    fread(&num_highscores, sizeof(int), 1, file);
+    if (num_highscores < 0) {
+        logprintf("Invalid num_highscores for 'hiscores.dat'\n");
+        return false;
+    }
+
+    if (num_highscores > 0) {
+        globals.highscores.resize(num_highscores);
+        for (int i = 0; i < num_highscores; i++) {
+            int highscore;
+            fread(&highscore, sizeof(int), 1, file);
+            globals.highscores[i] = highscore;
+        }
+    }
 
     return true;
 }

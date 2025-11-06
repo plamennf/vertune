@@ -1,0 +1,99 @@
+name: Build macOS Distribution
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+
+    env:
+      APP_NAME: Vertune
+      BUNDLE_ID: com.yourname.vertune
+      APP_VERSION: 1.0
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          brew update
+          brew install sdl2 glew freetype
+
+      - name: Create build directory
+        run: mkdir -p build
+
+      - name: Build Vertune
+        run: |
+          pushd build
+          clang++ -std=c++20 -O2 \
+            -I../external/include \
+            ../src/*.cpp ../src/packager/packager.cpp \
+            -L/usr/local/lib -lSDL2 -lGLEW -lfreetype -framework OpenGL \
+            -o vertune
+          popd
+
+      - name: Create .app bundle
+        run: |
+          rm -rf dist
+          mkdir -p dist/${APP_NAME}.app/Contents/MacOS
+          mkdir -p dist/${APP_NAME}.app/Contents/Resources
+
+          cp build/vertune dist/${APP_NAME}.app/Contents/MacOS/vertune
+          cp assets.pak dist/${APP_NAME}.app/Contents/Resources/
+
+          cat <<EOF > dist/${APP_NAME}.app/Contents/Info.plist
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" 
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>CFBundleName</key>
+    <string>${APP_NAME}</string>
+    <key>CFBundleDisplayName</key>
+    <string>${APP_NAME}</string>
+    <key>CFBundleExecutable</key>
+    <string>vertune</string>
+    <key>CFBundleIdentifier</key>
+    <string>${BUNDLE_ID}</string>
+    <key>CFBundleVersion</key>
+    <string>${APP_VERSION}</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>10.12</string>
+  </dict>
+</plist>
+EOF
+
+      - name: Code-sign .app (optional for distribution)
+        if: ${{ secrets.APPLE_ID && secrets.APP_SPECIFIC_PASSWORD }}
+        run: |
+          codesign --deep --force --options runtime \
+            --sign "Developer ID Application: Your Name (TEAMID)" \
+            dist/${APP_NAME}.app
+
+      - name: Notarize .app (optional for distribution)
+        if: ${{ secrets.APPLE_ID && secrets.APP_SPECIFIC_PASSWORD }}
+        run: |
+          xcrun altool --notarize-app \
+            --primary-bundle-id "${BUNDLE_ID}" \
+            --username "${{ secrets.APPLE_ID }}" \
+            --password "${{ secrets.APP_SPECIFIC_PASSWORD }}" \
+            --file dist/${APP_NAME}.app
+
+      - name: Zip the app for distribution
+        run: |
+          cd dist
+          zip -r ${APP_NAME}.zip ${APP_NAME}.app
+          cd ..
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: vertune-macos-dist
+          path: dist/${APP_NAME}.zip

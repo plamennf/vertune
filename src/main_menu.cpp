@@ -5,6 +5,8 @@
 #include "world.h"
 #include "audio.h"
 
+#include <stdio.h>
+
 static const Vector4 MENU_COLOR_TEXT      = v4(1.0f, 0.98f, 0.95f, 1); // clean warm white
 static const Vector4 MENU_COLOR_HIGHLIGHT = v4(1.0f, 0.45f, 0.2f, 1);  // rich orange accent
 static const Vector4 MENU_COLOR_SUBTEXT   = v4(0.45f, 0.5f, 0.6f, 1);  // muted blue-gray
@@ -14,7 +16,11 @@ enum Menu_Page {
     MENU_PAGE_MAIN,
     MENU_PAGE_CONTROLS,
     MENU_PAGE_SETTINGS,
+    MENU_PAGE_HIGHSCORES,
 };
+
+static float draw_y_offset_for_highscores_due_to_scrolling = 0.0f;
+static int bottom_y_after_drawing_highscores = 0;
 
 static int current_menu_choice = 0;
 static Menu_Page current_menu_page = MENU_PAGE_MAIN;
@@ -26,17 +32,18 @@ static double time_of_restart_confirmation = -1.0;
 static double time_of_quit_confirmation = -1.0;
 static double last_keypress_time = 0.0;
 
-static int index_resume   = -1;
-static int index_restart  = -1;
-static int index_controls = -1;
-static int index_settings = -1;
-static int index_quit     = -1;
+static int index_resume     = -1;
+static int index_restart    = -1;
+static int index_controls   = -1;
+static int index_settings   = -1;
+static int index_highscores = -1;
+static int index_quit       = -1;
 
 static int menu_items_total = 4; // Will get reset after first draw phase.
 static int num_menu_items_drawn = 0;
 
 static int get_x_pad() {
-    int x_pad = (int)(globals.render_width * 0.08f);
+    int x_pad = (int)(globals.render_width * 0.01f);
     return x_pad;
 }
 
@@ -123,8 +130,15 @@ static void handle_enter() {
     } else if (choice == index_settings) {
         current_menu_page = MENU_PAGE_SETTINGS;
         current_menu_choice = 0;
+    } else if (choice == index_highscores) {
+        current_menu_page = MENU_PAGE_HIGHSCORES;
     } else if (choice == index_quit) {
-        if (asking_for_quit_confirmation) globals.should_quit_game = true;
+        if (asking_for_quit_confirmation) {
+            if (globals.current_world != globals.menu_world) {
+                globals.highscores.add(globals.num_worlds_completed);
+            }
+            globals.should_quit_game = true;
+        }
         else asking_for_quit_confirmation = true;
     }
 }
@@ -188,7 +202,7 @@ static void draw_menu_choices() {
     set_depth_test_mode(DEPTH_TEST_OFF);
 
     int center_x = globals.render_width / 2;
-    int cursor_y = (int)(globals.render_height * 0.62);
+    int cursor_y = (int)(globals.render_height * 0.7f);
 
     Dynamic_Font *font = body_font;
     int stride = (int)(1.4f * font->character_height);
@@ -227,6 +241,13 @@ static void draw_menu_choices() {
 
     index_settings = draw_item("Settings", font, center_x, cursor_y, start_color);
     cursor_y -= stride;
+
+    //
+    // Menu item: Highscores
+    //
+
+    index_highscores = draw_item("Highscores", font, center_x, cursor_y, start_color);
+    cursor_y -= stride;
     
     //
     // Menu item: Quit
@@ -252,7 +273,7 @@ static void draw_title() {
     auto title_font = get_font_at_size("Lora-BoldItalic", (int)(BIG_FONT_SIZE * 1.6f));
 
     Dynamic_Font *font = title_font;
-    char *text = "Vertune";
+    char *text = "Vertune!";
     int x = get_x_pad();
     int y = globals.render_height - (int)(font->character_height * 1.5f);
     draw_text(font, text, x, y, v4(1, 1, 1, 1));
@@ -299,6 +320,7 @@ static void draw_controls() {
         { "Move Right", "D" },
         { "Jump", "W" },
         { "Toggle FPS hud", "F" },
+        { "Toggle fullscreen", "F11" },
     };
 
     int cursor_y = (int)(globals.render_height * 0.62);
@@ -404,6 +426,55 @@ static void draw_settings() {
     }
 }
 
+static float get_max_draw_y_offset_for_highscores_due_to_scrolling() {
+    int BIG_FONT_SIZE = (int)(globals.render_height * 0.0725f);
+    auto body_font    = get_font_at_size("Lora-Bold", (int)(BIG_FONT_SIZE * 0.9f));
+    Dynamic_Font *font = body_font;
+
+    int cursor_y = (int)(globals.render_height * 0.8);
+    int stride = (int)(1.4f * font->character_height);
+
+    for (int hiscore : globals.highscores) {
+        cursor_y -= stride;
+    }
+
+    return (float)(-cursor_y);
+}
+
+static void draw_highscores() {
+    clear_framebuffer(0.1f, 0.1f, 0.1f, 1.0f);
+    
+    int BIG_FONT_SIZE = (int)(globals.render_height * 0.0725f);
+    auto title_font   = get_font_at_size("Lora-BoldItalic", (int)(BIG_FONT_SIZE * 1.6f));
+    auto body_font    = get_font_at_size("Lora-Bold", (int)(BIG_FONT_SIZE * 0.9f));
+
+    set_shader(globals.shader_text);
+    rendering_2d(globals.render_width, globals.render_height, draw_y_offset_for_highscores_due_to_scrolling);
+
+    set_blend_mode(BLEND_MODE_ALPHA);
+    set_cull_mode(CULL_MODE_OFF);
+    set_depth_test_mode(DEPTH_TEST_OFF);
+
+    Dynamic_Font *font = body_font;
+    char text[256];
+    snprintf(text, sizeof(text), "%s", "Highscores");
+    int x = (globals.render_width - font->get_string_width_in_pixels(text)) / 2;
+    int y = globals.render_height - (int)(font->character_height * 1.5f);
+    draw_text(font, text, x, y, v4(1, 1, 1, 1));
+
+    int cursor_y = (int)(globals.render_height * 0.8);
+    int stride = (int)(1.4f * font->character_height);
+
+    for (int hiscore : globals.highscores) {
+        snprintf(text, sizeof(text), "%d", hiscore);
+        x = (globals.render_width - font->get_string_width_in_pixels(text)) / 2;
+        draw_text(font, text, x, cursor_y, v4(1, 1, 1, 1));
+        cursor_y -= stride;
+    }
+
+    bottom_y_after_drawing_highscores = cursor_y;
+}
+
 void draw_main_menu() {  
     draw_world(globals.current_world, true);
     
@@ -464,10 +535,38 @@ void draw_main_menu() {
                 play_sound(globals.exit_menu);
             }
         } break;
+
+        case MENU_PAGE_HIGHSCORES: {
+            draw_highscores();
+            if (is_key_pressed(SDL_SCANCODE_ESCAPE) || is_key_pressed(SDL_SCANCODE_BACKSPACE)) {
+                current_menu_page = MENU_PAGE_MAIN;
+                current_menu_choice = index_highscores;
+                play_sound(globals.exit_menu);
+            }
+        } break;
     }
 
-    if (is_key_pressed(SDL_SCANCODE_UP))   advance_menu_choice(-1);
-    if (is_key_pressed(SDL_SCANCODE_DOWN)) advance_menu_choice(+1);
+    if (current_menu_page == MENU_PAGE_HIGHSCORES) {
+        float delta = 20.0f;
+        
+        if (is_key_down(SDL_SCANCODE_UP)) {
+            draw_y_offset_for_highscores_due_to_scrolling -= delta;
+        } else if (is_key_down(SDL_SCANCODE_DOWN)) {
+            draw_y_offset_for_highscores_due_to_scrolling += delta;
+        }
+        
+        if (draw_y_offset_for_highscores_due_to_scrolling < 0.0f) {
+            draw_y_offset_for_highscores_due_to_scrolling = 0.0f;
+        }
+
+        float bottom = -(float)bottom_y_after_drawing_highscores;
+        if (draw_y_offset_for_highscores_due_to_scrolling > bottom) {
+            draw_y_offset_for_highscores_due_to_scrolling = bottom;
+        }
+    } else {
+        if (is_key_pressed(SDL_SCANCODE_UP))   advance_menu_choice(-1);
+        if (is_key_pressed(SDL_SCANCODE_DOWN)) advance_menu_choice(+1);
+    }
     
     if (is_key_pressed(SDL_SCANCODE_RETURN) || is_key_pressed(SDL_SCANCODE_KP_ENTER)) {
         handle_enter();

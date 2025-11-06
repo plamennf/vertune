@@ -295,8 +295,10 @@ void logprintf(char *fmt, ...) {
     vsnprintf(buf, sizeof(buf), fmt, args);
     va_end(args);
 
+#ifdef BUILD_DEBUG
     fprintf(stdout, "%s", buf);
     fflush(stdout);
+#endif
 
     if (log_file) {
         fprintf(log_file, "%s", buf);

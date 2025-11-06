@@ -78,6 +78,7 @@ void refresh_transform();
 
 void rendering_2d(int width, int height);
 void rendering_2d(int width, int height, Matrix4 world_to_view_matrix);
+void rendering_2d(int width, int height, float y_offset);
 
 struct Dynamic_Font;
 void draw_text(Dynamic_Font *font, char *text, int x, int y, Vector4 color);

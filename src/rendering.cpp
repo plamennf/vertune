@@ -41,6 +41,23 @@ void rendering_2d(int width, int height, Matrix4 world_to_view_matrix) {
     refresh_transform();    
 }
 
+void rendering_2d(int width, int height, float y_offset) {
+    float w = (float)width;
+    if (w < 1.0f) w = 1.0f;
+    float h = (float)height;
+    if (h < 1.0f) h = 1.0f;
+    
+    Matrix4 p = make_orthographic(0.0f, w, 0.0f, h, -1.0f, 1.0f);
+    Matrix4 m = matrix4_identity();
+    m._24 = y_offset;
+    
+    globals.view_to_proj_matrix = p;
+    globals.world_to_view_matrix = m;
+    globals.object_to_world_matrix = matrix4_identity();
+    
+    refresh_transform();
+}
+
 void draw_text(Dynamic_Font *font, char *text, int x, int y, Vector4 color) {
     Texture *last_texture = NULL;
     

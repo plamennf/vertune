@@ -21,6 +21,9 @@ const int MAX_SLOW_FRAMES = 120;
 const int AUDIO_FILE_MAGIC_NUMBER = 0x504C4159;
 const int AUDIO_FILE_VERSION = 1;
 
+const int HIGHSCORE_FILE_MAGIC_NUMBER = 0x48534601;
+const int HIGHSCORE_FILE_VERSION = 1;
+
 struct Fade_Transition {
     bool active = false;
     float timer = 0.0f;
@@ -121,6 +124,8 @@ struct Global_Variables {
     float sfx_volume = 1.0f;
     float music_volume = 1.0f;
 
+    Array <int> highscores;
+
 #ifdef USE_PACKAGE
     Package package;
 #endif
@@ -145,3 +150,6 @@ void draw_menu_fade_overlay();
 
 bool save_audio_settings();
 bool load_audio_settings();
+
+bool save_highscores();
+bool load_highscores();

@@ -1,3 +1,3 @@
 @echo off
 
-build\platformer.exe
+build\vertune.exe

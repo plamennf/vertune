@@ -1,4 +1,3 @@
-- Save the high scores to a file. Preferably binary so that the players can't change the scores easily.
 - Make a build.macos and run.macos file
 
 For update after releasing the game:
