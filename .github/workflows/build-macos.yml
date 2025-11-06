@@ -58,11 +58,14 @@ jobs:
         shell: bash
         run: |
           cd dist
-          zip -r ${APP_NAME}.zip ${APP_NAME}.app
+          zip -r vertune.zip vertune.app
           cd ..
+
+      - name: List files before upload
+        run: ls -R dist
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: vertune-macos-dist
-          path: dist/${APP_NAME}.zip
+          path: dist/vertune.zip
