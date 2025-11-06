@@ -2,8 +2,7 @@ name: Build macOS Vertune
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -19,30 +18,40 @@ jobs:
 
       - name: Install dependencies
         run: |
-          arch -x86_64 brew update || true
-          arch -x86_64 brew upgrade || true
-          arch -x86_64 brew install sdl2 glew freetype
+          brew update
+          brew install sdl2 glew freetype llvm
 
       - name: Build Vertune
         shell: bash
         run: |
-          rm -rf build
+          set -e
           mkdir -p build
           cd build
-          BREW_PREFIX=$(brew --prefix)
-          clang++ -std=c++20 -arch x86_64 -O2 -I$BREW_PREFIX/include -Wwritable-strings -Wswitch -Wunused-value -Wreturn-type -I../external/include ../src/resource_manager.cpp ../src/rendering_opengl.cpp ../src/rendering.cpp ../src/packager/packager.cpp ../src/main_menu.cpp ../src/main.cpp ../src/general.cpp ../src/font.cpp ../src/audio.cpp ../src/entity.cpp ../src/world.cpp ../src/camera.cpp ../src/particles.cpp ../src/memory_arena.cpp ../src/tilemap.cpp ../src/text_file_handler.cpp ../src/mt19937-64.cpp \
-            -L$BREW_PREFIX/lib -lSDL2 -lGLEW -lfreetype -framework OpenGL \
+
+          LLVM_PREFIX=$(brew --prefix llvm)
+          SDK_PATH=$(xcrun --sdk macosx --show-sdk-path)
+
+          echo "Using LLVM from: $LLVM_PREFIX"
+          echo "Using SDK: $SDK_PATH"
+
+          # Find all .cpp files
+          SRC_FILES=$(find ../src -name "*.cpp")
+
+          clang++ $SRC_FILES \
+            -std=c++20 -stdlib=libc++ -O2 \
+            -I../external/include -I"$LLVM_PREFIX/include" \
+            -L"$LLVM_PREFIX/lib" -L/opt/homebrew/lib \
+            -lSDL2 -lGLEW -lfreetype -framework OpenGL -framework Cocoa \
+            --sysroot "$SDK_PATH" \
             -o vertune
-          cd ..
 
       - name: Create .app bundle
         shell: bash
         run: |
-          rm -rf dist
           mkdir -p dist/${APP_NAME}.app/Contents/MacOS
           mkdir -p dist/${APP_NAME}.app/Contents/Resources
           cp build/vertune dist/${APP_NAME}.app/Contents/MacOS/vertune
-          cp assets.pak dist/${APP_NAME}.app/Contents/Resources/
+          cp assets.pak dist/${APP_NAME}.app/Contents/Resources/ || true
           echo "Basic macOS app created"
 
       - name: Zip the app
