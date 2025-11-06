@@ -71,7 +71,7 @@ void immediate_circle(Vector2 center, float radius, Vector4 color);
 struct Shader;
 Shader *make_shader();
 void release_shader(Shader *shader);
-bool load_shader(Shader *shader, char *filepath);
+bool load_shader(Shader *shader, char *source, char *debug_name);
 void set_shader(Shader *shader);
 Shader *get_current_shader();
 void refresh_transform();

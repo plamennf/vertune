@@ -83,7 +83,6 @@ bool init_rendering(SDL_Window *_window, bool vsync) {
 
     glEnable(GL_FRAMEBUFFER_SRGB);
     glDisable(GL_MULTISAMPLE);
-    //glEnable(GL_MULTISAMPLE);
 
     glGenBuffers(1, &immediate_vbo);
     glBindBuffer(GL_ARRAY_BUFFER, immediate_vbo);
@@ -431,10 +430,9 @@ void release_shader(Shader *shader) {
     }
 }
 
-bool load_shader(Shader *shader, char *filepath) {
-    char *file_data = read_entire_file(filepath);
+bool load_shader(Shader *shader, char *file_data, char *filepath) {
     if (!file_data) {
-        logprintf("Failed to read file '%s'.\n", filepath);
+        logprintf("Null file data for '%s'.\n", filepath);
         return false;
     }
     

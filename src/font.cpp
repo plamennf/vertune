@@ -67,6 +67,42 @@ static Loaded_Font *get_loaded_font(char *name) {
     return font;
 }
 
+#ifdef USE_PACKAGE
+static Loaded_Font *get_loaded_font_from_package(char *name) {
+    // Check if already loaded
+    for (int i = 0; i < loaded_fonts.count; i++) {
+        Loaded_Font *font = loaded_fonts[i];
+        if (strings_match(font->name, name)) return font;
+    }
+
+    // Look up asset in your package
+    Package_Asset_Entry *entry = find_asset_by_name(&globals.package, name);
+    if (!entry) {
+        logprintf("No font '%s' found in asset package.\n", name);
+        return NULL;
+    }
+
+    // Pointer to font data in memory
+    u8 *font_data = entry->data;
+    s64 font_size = entry->size;
+
+    ensure_fonts_initted();
+
+    Loaded_Font *font = new Loaded_Font();
+    font->name = copy_string(name);
+
+    FT_Error error = FT_New_Memory_Face(ft_lib, font_data, (FT_Long)font_size, 0, &font->face);
+    if (error) {
+        logprintf("Failed to load font '%s' from memory: %d\n", name, error);
+        delete font;
+        return NULL;
+    }
+
+    loaded_fonts.add(font);
+    return font;
+}
+#endif
+
 void Dynamic_Font::load(Loaded_Font *font, int size) {
     face = font->face;
     character_height = size;
@@ -214,7 +250,11 @@ Dynamic_Font *get_font_at_size(char *name, int size) {
         if (strings_match(font->name, name) && font->character_height == size) return font;
     }
 
+#ifdef USE_PACKAGE
+    Loaded_Font *loaded_font = get_loaded_font_from_package(name);
+#else
     Loaded_Font *loaded_font = get_loaded_font(name);
+#endif
     Dynamic_Font *font = new Dynamic_Font();
     font->name = copy_string(name);
     font->load(loaded_font, size);

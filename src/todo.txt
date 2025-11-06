@@ -1,6 +1,4 @@
-- Package the assets into the headers which are included when building. Because the assets are a few fonts and 5 textures. This also requires to change the font and shader code to allow reading from memory instead of from a file.
 - Save the high scores to a file. Preferably binary so that the players can't change the scores easily.
-- Remove shader hotloading in distribution builds.
 - Make a build.macos and run.macos file
 
 For update after releasing the game:

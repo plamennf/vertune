@@ -54,6 +54,7 @@ u64 round_to_next_power_of_2(u64 v);
 s64 string_length(char *s);
 char *copy_string(char *s);
 bool strings_match(char *a, char *b);
+bool strings_match(char *a, s64 a_len, char *b);
 
 int get_codepoint(char *text, int *bytes_processed);
 

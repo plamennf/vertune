@@ -118,6 +118,60 @@ Sound *load_sound(char *filepath, bool looping) {
     return sound;
 }
 
+Sound *load_sound_from_memory(s64 data_size, u8 *data, bool looping) {
+    if (!data || data_size <= 0) return NULL;
+
+    SDL_RWops *rw = SDL_RWFromMem(data, (int)data_size);
+    if (!rw) {
+        logprintf("Failed to create SDL_RWops from memory: %s\n", SDL_GetError());
+        return NULL;
+    }
+
+    SDL_AudioSpec spec;
+    Uint8 *buf;
+    Uint32 len;
+
+    if (!SDL_LoadWAV_RW(rw, 1, &spec, &buf, &len)) {
+        logprintf("Failed to load WAV from memory: %s\n", SDL_GetError());
+        SDL_RWclose(rw);
+        return NULL;
+    }
+
+    SDL_AudioCVT cvt;
+    if (SDL_BuildAudioCVT(&cvt,
+                          spec.format, spec.channels, spec.freq,
+                          AUDIO_F32, 2, 48000) < 0) {
+        logprintf("Failed to build audio CVT for memory WAV: %s\n", SDL_GetError());
+        SDL_FreeWAV(buf);
+        return NULL;
+    }
+
+    cvt.len = len;
+    cvt.buf = (Uint8 *)SDL_malloc(len * cvt.len_mult);
+    SDL_memcpy(cvt.buf, buf, len);
+    SDL_FreeWAV(buf);
+
+    if (SDL_ConvertAudio(&cvt) < 0) {
+        logprintf("Audio conversion failed for memory WAV: %s\n", SDL_GetError());
+        SDL_free(cvt.buf);
+        return NULL;
+    }
+
+    Sound *sound = new Sound();
+    sound->spec.format = AUDIO_F32;
+    sound->spec.channels = 2;
+    sound->spec.freq = 48000;
+    sound->buffer = cvt.buf;
+    sound->length = cvt.len_cvt;
+    sound->position = 0;
+    sound->playing = false;
+    sound->looping = looping;
+    sound->volume  = 0.5f;
+
+    logprintf("Loaded sound from memory, len=%u format=%u\n", sound->length, sound->spec.format);
+    return sound;
+}
+
 void play_sound(Sound *sound) {
     if (!sound) return;
     

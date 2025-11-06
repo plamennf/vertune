@@ -8,6 +8,7 @@
 #include "font.h"
 #include "main_menu.h"
 #include "audio.h"
+#include "packager/packager.h"
 
 #include <stdio.h>
 
@@ -100,15 +101,106 @@ static void adjust_fps_cap_based_on_performance() {
 }
 
 static void init_shaders() {
-    globals.shader_color   = find_or_load_shader("color");
-    globals.shader_texture = find_or_load_shader("texture");
-    globals.shader_text    = find_or_load_shader("text");
+    globals.shader_color   = make_shader();
+    load_shader(globals.shader_color, R"(
+OUT_IN vec4 v_color;
 
-    globals.full_heart    = load_texture_from_file("data/textures/heart_full_16x16.png");
-    globals.half_heart    = load_texture_from_file("data/textures/heart_half_16x16.png");
-    globals.empty_heart   = load_texture_from_file("data/textures/heart_empty_16x16.png");
-    globals.restart_taken = load_texture_from_file("data/textures/restart_taken.png");
-    globals.restart_available = load_texture_from_file("data/textures/restart_available.png");
+#ifdef VERTEX_SHADER
+
+layout(location = 0) in vec2 a_position;
+layout(location = 1) in vec4 a_color;
+layout(location = 2) in vec2 a_uv;
+
+uniform mat4 object_to_proj_matrix;
+
+void main() {
+    gl_Position = object_to_proj_matrix * vec4(a_position, 0.0, 1.0);
+    v_color     = a_color;
+}
+
+#endif
+
+#ifdef FRAGMENT_SHADER
+
+layout(location = 0) out vec4 o_color;
+
+void main() {
+    o_color = v_color;
+}
+
+#endif
+)", "color");
+    
+    globals.shader_texture = make_shader();
+    load_shader(globals.shader_texture, R"(
+OUT_IN vec4 v_color;
+OUT_IN vec2 v_uv;
+
+#ifdef VERTEX_SHADER
+
+layout(location = 0) in vec2 a_position;
+layout(location = 1) in vec4 a_color;
+layout(location = 2) in vec2 a_uv;
+
+uniform mat4 object_to_proj_matrix;
+
+void main() {
+    gl_Position = object_to_proj_matrix * vec4(a_position, 0.0, 1.0);
+    v_color     = a_color;
+    v_uv        = a_uv;
+}
+
+#endif
+
+#ifdef FRAGMENT_SHADER
+
+layout(location = 0) out vec4 o_color;
+
+uniform sampler2D tex;
+
+void main() {
+    vec4 tex_color = texture(tex, v_uv);
+    o_color = v_color * tex_color;
+}
+
+#endif
+
+)", "texture");
+    
+    globals.shader_text    = make_shader();
+    load_shader(globals.shader_text, R"(
+OUT_IN vec4 v_color;
+OUT_IN vec2 v_uv;
+
+#ifdef VERTEX_SHADER
+
+layout(location = 0) in vec2 a_position;
+layout(location = 1) in vec4 a_color;
+layout(location = 2) in vec2 a_uv;
+
+uniform mat4 object_to_proj_matrix;
+
+void main() {
+    gl_Position = object_to_proj_matrix * vec4(a_position, 0.0, 1.0);
+    v_color     = a_color;
+    v_uv        = a_uv;
+}
+
+#endif
+
+#ifdef FRAGMENT_SHADER
+
+layout(location = 0) out vec4 o_color;
+
+uniform sampler2D tex;
+
+void main() {
+    vec4 tex_color = texture(tex, v_uv);
+    o_color = v_color * vec4(1.0, 1.0, 1.0, tex_color.r);
+}
+
+#endif
+)", "text");
 }
 
 static void init_framebuffer() {
@@ -548,7 +640,6 @@ int main(int argc, char *argv[]) {
     globals.window = create_window(globals.window_width, globals.window_height, "Platformer!");
     if (!globals.window) return 1;
     if (!init_rendering(globals.window, globals.should_vsync)) return 1;
-    init_resource_manager(); // !!! Need to init resource manager before shaders and textures !!!
     init_shaders();
     init_framebuffer();
     init_audio();
@@ -560,19 +651,44 @@ int main(int argc, char *argv[]) {
         globals.sfx_volume = 1.0f;
     }
 
-    globals.menu_background_music = load_sound("data/sounds/menu-music.wav", true);
-    globals.level_background_music = load_sound("data/sounds/level-music.wav", true);
-    globals.coin_pickup_sfx    = load_sound("data/sounds/coin-pickup.wav", false);
-    globals.level_complete_sfx = load_sound("data/sounds/level-completed.wav", false);
-    globals.death_sfx = load_sound("data/sounds/death.wav", false);
-    globals.jump_sfx = load_sound("data/sounds/jump.wav", false);
-    globals.damage_sfx = load_sound("data/sounds/damage.wav", false);
-    globals.enemy_kill_sfx = load_sound("data/sounds/enemy-kill.wav", false);
-    globals.level_fail_sfx = load_sound("data/sounds/level-failed.wav", false);
+#ifdef USE_PACKAGE
+    if (!read_package(&globals.package)) {
+        return 1;
+    }
+#endif
 
-    globals.menu_change_option = load_sound("data/sounds/menu-change-option.wav", false);
-    globals.menu_select = load_sound("data/sounds/menu-select.wav", false);
-    globals.exit_menu = load_sound("data/sounds/exit-menu.wav", false);
+    Texture *white_texture = make_texture();
+    u8 white_texture_data[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
+    load_texture_from_data(white_texture, 1, 1, TEXTURE_FORMAT_RGBA8, white_texture_data);
+    
+    globals.full_heart    = find_or_load_texture("heart_full_16x16");
+    if (!globals.full_heart) globals.full_heart = white_texture;
+    
+    globals.half_heart    = find_or_load_texture("heart_half_16x16");
+    if (!globals.half_heart) globals.half_heart = white_texture;
+    
+    globals.empty_heart   = find_or_load_texture("heart_empty_16x16");
+    if (!globals.empty_heart) globals.empty_heart = white_texture;
+    
+    globals.restart_taken = find_or_load_texture("restart_taken");
+    if (!globals.restart_taken) globals.restart_taken = white_texture;
+    
+    globals.restart_available = find_or_load_texture("restart_available");
+    if (!globals.restart_available) globals.restart_available = white_texture;
+    
+    globals.menu_background_music = find_or_load_sound("menu-music", true);
+    globals.level_background_music = find_or_load_sound("level-music", true);
+    globals.coin_pickup_sfx    = find_or_load_sound("coin-pickup", false);
+    globals.level_complete_sfx = find_or_load_sound("level-completed", false);
+    globals.death_sfx = find_or_load_sound("death", false);
+    globals.jump_sfx = find_or_load_sound("jump", false);
+    globals.damage_sfx = find_or_load_sound("damage", false);
+    globals.enemy_kill_sfx = find_or_load_sound("enemy-kill", false);
+    globals.level_fail_sfx = find_or_load_sound("level-failed", false);
+
+    globals.menu_change_option = find_or_load_sound("menu-change-option", false);
+    globals.menu_select = find_or_load_sound("menu-select", false);
+    globals.exit_menu = find_or_load_sound("exit-menu", false);
     
     if (!create_menu_world()) return 1;
     globals.current_world = globals.menu_world;
@@ -657,8 +773,6 @@ int main(int argc, char *argv[]) {
         
         swap_buffers();
 
-        do_hotloading();
-
         s64 fps_cap_nanoseconds = 1000000000 / globals.time_info.fps_cap;
 
         while (get_time_nanoseconds() <= last_time + fps_cap_nanoseconds) {
@@ -668,6 +782,10 @@ int main(int argc, char *argv[]) {
     }
 
     save_audio_settings();
+
+#ifdef BUILD_DEBUG
+    create_package();
+#endif
     
     return 0;
 }

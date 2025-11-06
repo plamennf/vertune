@@ -14,6 +14,7 @@ bool init_audio();
 void destroy_audio();
 
 Sound *load_sound(char *filepath, bool looping);
+Sound *load_sound_from_memory(s64 data_size, u8 *data, bool looping);
 void play_sound(Sound *sound);
 void stop_sound(Sound *sound);
 

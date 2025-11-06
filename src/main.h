@@ -4,6 +4,7 @@
 #include "geometry.h"
 #include "array.h"
 #include "hash_table.h"
+#include "packager/packager.h"
 
 #include <SDL.h>
 
@@ -119,6 +120,10 @@ struct Global_Variables {
     float master_volume = 0.5f;
     float sfx_volume = 1.0f;
     float music_volume = 1.0f;
+
+#ifdef USE_PACKAGE
+    Package package;
+#endif
 };
 
 extern Global_Variables globals;

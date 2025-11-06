@@ -1,116 +1,95 @@
 #include "main.h"
 #include "resource_manager.h"
 #include "rendering.h"
+#include "audio.h"
 
 #include <stdio.h>
-#include <fswatcher/fswatcher.h>
 
-static char *shader_directory = "data/shaders";
-#ifdef RENDER_OPENGL
-static char *shader_extension = "glsl";
-#endif
+static char *texture_directory = "data/textures";
+static char *texture_extension = "png";
+
+static char *sound_directory = "data/sounds";
+static char *sound_extension = "wav";
 
 template <typename T>
 struct Resource_Info {
-    char *full_path;
     char *name;
     T *data;
 };
 
-static String_Hash_Table <Resource_Info <Shader>> loaded_shaders;
+static String_Hash_Table <Resource_Info <Texture>> loaded_textures;
+static String_Hash_Table <Resource_Info <Sound>> loaded_sounds;
 
-static fswatcher_t my_fswatcher;
-
-static bool hotload_callback(fswatcher_event_handler *handler, fswatcher_event_type event_type, const char *source, const char *destination);
-
-void init_resource_manager() {
-    my_fswatcher = fswatcher_create(FSWATCHER_CREATE_RECURSIVE, FSWATCHER_EVENT_ALL, "data", NULL);
-}
-
-void do_hotloading() {
-    fswatcher_event_handler handler = {
-        hotload_callback
-    };
-    
-    fswatcher_poll(my_fswatcher, &handler, NULL);
-}
-
-Shader *find_or_load_shader(char *name) {
-    auto _info = loaded_shaders.find(name);
+Texture *find_or_load_texture(char *name) {
+    auto _info = loaded_textures.find(name);
     if (_info) return (*_info).data;
-    
+
+#ifdef USE_PACKAGE
+    Package_Asset_Entry *entry = find_asset_by_name(&globals.package, name);
+    if (!entry || entry->type != PACKAGE_ASSET_TEXTURE) {
+        logprintf("No texture '%s' found in asset package.\n", name);
+        return NULL;
+    }
+
+    Texture *texture = make_texture();
+    load_texture_from_data(texture, entry->width, entry->height, TEXTURE_FORMAT_RGBA8, entry->data);
+#else
     char full_path[256];
-    snprintf(full_path, sizeof(full_path), "%s/%s.%s", shader_directory, name, shader_extension);
+    snprintf(full_path, sizeof(full_path), "%s/%s.%s", texture_directory, name, texture_extension);
     if (!file_exists(full_path)) {
-        logprintf("Unable to find file '%s' in '%s'!\n", name, shader_directory);
+        logprintf("Unable to find file '%s' in '%s'!\n", name, texture_directory);
         return NULL;
     }
 
-    Shader *shader = make_shader();
-    if (!load_shader(shader, full_path)) {
-        free(shader);
+    Texture *texture = load_texture_from_file(full_path);
+    if (!texture) {
+        free(texture);
         return NULL;
     }
+#endif
 
-    Resource_Info <Shader> info;
-    info.full_path = copy_string(full_path);
+    Resource_Info <Texture> info;
     info.name      = copy_string(name);
-    info.data      = shader;
+    info.data      = texture;
 
-    loaded_shaders.add(name, info);
-    return shader;
+    loaded_textures.add(name, info);
+    return texture;
 }
 
-static char *replace_backslashes_with_forwardslashes(char *s) {
-    if (!s) return NULL;
+Sound *find_or_load_sound(char *name, bool is_looping) {
+    auto _info = loaded_sounds.find(name);
+    if (_info) return (*_info).data;
 
-    for (char *at = s; *at; at++) {
-        if (*at == '\\') *at = '/';
+#ifdef USE_PACKAGE
+    Package_Asset_Entry *entry = find_asset_by_name(&globals.package, name);
+    if (!entry || entry->type != PACKAGE_ASSET_SOUND) {
+        logprintf("No sound '%s' found in asset package.\n", name);
+        return NULL;
     }
 
-    return s;
-}
-
-static bool hotload_callback(fswatcher_event_handler *handler, fswatcher_event_type event_type, const char *_source, const char *_destination) {
-    // TODO: Add support for create and remove
-    if (event_type != FSWATCHER_EVENT_MODIFY) return false;
-
-    char *source      = replace_backslashes_with_forwardslashes((char *)_source);
-    char *destination = replace_backslashes_with_forwardslashes((char *)_destination);
-    
-    char *extension = strrchr(source, '.');
-    if (!extension) {
-        //logprintf("[hotload_callback] Invalid file: '%s' has no extension!", source);
-        return false;
+    Sound *sound = load_sound_from_memory(entry->size, entry->data, entry->is_looping);
+    if (!sound) {
+        return NULL;
     }
-    extension++;
-
-    if (strings_match(extension, shader_extension)) {
-        char *src = source;
-        if (strrchr(src, '/')) {
-            src = strrchr(src, '/');
-            src++;
-        }
-
-        char *name = copy_string(src);
-        defer { delete [] name; };
-
-        char *dot = strrchr(name, '.');
-        if (dot) {
-            name[dot - name] = 0;
-        }
-
-        Resource_Info <Shader> shader_info;
-        auto _info = loaded_shaders.find(name);
-        if (_info) shader_info = *_info;
-        else {
-            logprintf("Unable to find file '%s' in '%s'!\n", name, shader_directory);
-            return false;
-        }
-
-        release_shader(shader_info.data);
-        load_shader(shader_info.data, shader_info.full_path);
+#else    
+    char full_path[256];
+    snprintf(full_path, sizeof(full_path), "%s/%s.%s", sound_directory, name, sound_extension);
+    if (!file_exists(full_path)) {
+        logprintf("Unable to find file '%s' in '%s'!\n", name, sound_directory);
+        return NULL;
     }
 
-    return true;
+    Sound *sound = load_sound(full_path, is_looping);
+    if (!sound) {
+        free(sound);
+        return NULL;
+    }
+#endif
+
+    Resource_Info <Sound> info;
+    info.name      = copy_string(name);
+    info.data      = sound;
+
+    loaded_sounds.add(name, info);
+    return sound;
 }

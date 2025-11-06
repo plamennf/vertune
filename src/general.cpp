@@ -56,6 +56,19 @@ bool strings_match(char *a, char *b) {
     return *a == 0 && *b == 0;
 }
 
+bool strings_match(char *a, s64 a_len, char *b) {
+    if (a == b) return true;
+    if (!a || !b) return false;
+
+    for (s64 i = 0; i < a_len; i++) {
+        if (b[i] == 0) return false;
+        if (a[i] != b[i]) return false;
+    }
+
+    // a matches first `a_len` characters of b, now b must end
+    return b[a_len] == 0;
+}
+
 // Copy-paste from https://github.com/raysan5/raylib/blob/master/src/rtext.c
 int get_codepoint(char *text, int *bytes_processed) {
     int code = 0x3f;
