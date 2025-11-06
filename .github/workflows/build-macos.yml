@@ -28,7 +28,7 @@ jobs:
           rm -rf build
           mkdir -p build
           cd build
-          SRC_FILES=$(find ../src -name "*.cpp")
+          SRC_FILES=$(find ../src -name "*.cpp" | tr '\n' ' ')
           BREW_PREFIX=$(brew --prefix)
           clang++ -std=c++20 -O2 -I$BREW_PREFIX/include -Wwritable-strings -Wswitch -Wunused-value -Wreturn-type -I../external/include $SRC_FILES \
             -L$BREW_PREFIX/lib -lSDL2 -lGLEW -lfreetype -framework OpenGL \
