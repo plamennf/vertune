@@ -3,7 +3,7 @@
 REM Check if a command line argument was passed
 if "%~1"=="" (
     REM No argument, keep the default value
-    set BuildDebug=1
+    set BuildDebug=0
 ) else (
     REM Use the value passed as argument
     set BuildDebug=%~1

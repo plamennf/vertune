@@ -546,7 +546,7 @@ void draw_main_menu() {
         } break;
     }
 
-    if (current_menu_page == MENU_PAGE_HIGHSCORES) {
+    if (current_menu_page == MENU_PAGE_HIGHSCORES && globals.highscores.count > 0) {
         float delta = 20.0f;
         
         if (is_key_down(SDL_SCANCODE_UP)) {
