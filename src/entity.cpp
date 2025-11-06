@@ -4,6 +4,7 @@
 #include "rendering.h"
 #include "tilemap.h"
 #include "particles.h"
+#include "audio.h"
 
 void update_single_hero(Hero *hero, float dt) {
     World *world = hero->world;
@@ -22,6 +23,7 @@ void update_single_hero(Hero *hero, float dt) {
         hero->velocity.y   = JUMP_FORCE;
         hero->is_on_ground = false;
         emit_jump_particles(world->particle_system, hero->position);
+        play_sound(globals.jump_sfx);
     }
 
     hero->velocity.y += GRAVITY * dt;
@@ -127,6 +129,7 @@ void update_single_hero(Hero *hero, float dt) {
 
         if (are_rect_and_circle_colliding(hero_rect, pickup->position, pickup->radius)) {
             hero->num_pickups++;
+            play_sound(globals.coin_pickup_sfx);
             schedule_for_destruction(pickup);
             hero->coin_flash_timer = COIN_FLASH_TIME;
             if (hero->num_pickups >= world->num_pickups_needed_to_unlock_door) {
@@ -148,6 +151,7 @@ void update_single_hero(Hero *hero, float dt) {
         if (are_intersecting(hero_rect, door_rect)) {
             if (!door->locked) {
                 globals.should_switch_worlds = true;
+                play_sound(globals.level_complete_sfx);
             }
         }
     }
@@ -221,6 +225,7 @@ void damage_hero(Hero *hero, double damage_amount) {
     emit_blood_particles(hero->world->particle_system, hero->position);
     if (hero->health <= 0.0) {
         hero->health = 0.0;
+        play_sound(globals.death_sfx);
         schedule_for_destruction(hero);
         globals.should_switch_worlds = true;
     }

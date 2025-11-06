@@ -8,7 +8,7 @@ pushd build
 set CompilerFlags= /Oi /fp:fast /fp:except- /Zi /FC /nologo /W3 /I ..\external\include /std:c++20 /Zc:strictStrings- /EHsc- 
 set Defines= /D_CRT_SECURE_NO_WARNINGS /DRENDER_OPENGL /DOS_WINDOWS /DCOMPILER_MSVC /DUNICODE /D_UNICODE /DGLFW_INCLUDE_NONE
 set LinkerFlags= /opt:ref /incremental:no /subsystem:console /LIBPATH:"..\external\lib"
-set Libs= SDL3.lib glew32.lib opengl32.lib freetype.lib
+set Libs= SDL2.lib SDL2main.lib glew32.lib opengl32.lib freetype.lib shell32.lib
 
 if %BuildDebug%==1 set CompilerFlags= /Od /Ob0 /MTd %CompilerFlags%
 if %BuildDebug%==0 set CompilerFlags= /O2 /Ob2 /MT %CompilerFlags%

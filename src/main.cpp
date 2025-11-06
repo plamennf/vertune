@@ -28,7 +28,7 @@ struct Key_State {
     bool changed;
 };
 
-static Key_State key_states[SDL_SCANCODE_COUNT];
+static Key_State key_states[SDL_NUM_SCANCODES];
 
 bool is_key_down(int key_code) {
     return key_states[key_code].is_down;
@@ -53,9 +53,7 @@ u64 seconds_to_nanoseconds(double seconds) {
 }
 
 static void update_time() {
-    s64 now_time;
-    SDL_GetCurrentTime(&now_time);
-
+    s64 now_time = get_time_nanoseconds();
     globals.time_info.delta_time       = now_time - globals.time_info.last_time;
     globals.time_info.real_world_time += globals.time_info.delta_time;
     globals.time_info.delta_time_seconds = nanoseconds_to_seconds(globals.time_info.delta_time);
@@ -159,17 +157,20 @@ static void draw_debug_hud() {
 }
 
 static void toggle_fullscreen(SDL_Window *window) {
-    bool is_fullscreen = SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN;
+    Uint32 flags = SDL_GetWindowFlags(window);
+    bool is_fullscreen = (flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0;
 
     if (is_fullscreen) {
-        SDL_SetWindowFullscreen(window, false);
-        SDL_SetWindowBordered(window, true);
-        SDL_SetWindowResizable(window, true);
-        //SDL_SetWindowSize(window, 1280, 720); // optional
+        // Go back to windowed mode
+        SDL_SetWindowFullscreen(window, 0);
+        SDL_SetWindowBordered(window, SDL_TRUE);
+        SDL_SetWindowResizable(window, SDL_TRUE);
         SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+        // optional: SDL_SetWindowSize(window, 1280, 720);
     } else {
-        SDL_SetWindowFullscreen(window, true);
-        SDL_SetWindowBordered(window, false);
+        // Go fullscreen (borderless desktop fullscreen)
+        SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+        SDL_SetWindowBordered(window, SDL_FALSE);
     }
 
     SDL_GetWindowSize(window, &globals.window_width, &globals.window_height);
@@ -180,26 +181,26 @@ static void respond_to_input() {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
-            case SDL_EVENT_QUIT: {
+            case SDL_QUIT: {
                 globals.should_quit_game = true;
             } break;
 
-            case SDL_EVENT_KEY_DOWN:
-            case SDL_EVENT_KEY_UP: {
-                bool is_down = event.key.down;
+            case SDL_KEYDOWN:
+            case SDL_KEYUP: {
+                bool is_down = event.type == SDL_KEYDOWN;
                 
-                Key_State *state = &key_states[event.key.scancode];
+                Key_State *state = &key_states[event.key.keysym.scancode];
                 state->changed   = state->is_down != is_down;
                 state->is_down   = is_down;
 
                 if (is_down && !event.key.repeat) {
-                    if (event.key.scancode == SDL_SCANCODE_F11) {
+                    if (event.key.keysym.scancode == SDL_SCANCODE_F11) {
                         toggle_fullscreen(globals.window);
                     }
                 }
 
                 if (globals.program_mode == PROGRAM_MODE_END) {
-                    if (is_down && !event.key.repeat && event.key.scancode != SDL_SCANCODE_F11) {
+                    if (is_down && !event.key.repeat && event.key.keysym.scancode != SDL_SCANCODE_F11) {
                         if (!globals.menu_fade.active) {
                             start_menu_fade(globals.current_world);
                         }
@@ -207,11 +208,16 @@ static void respond_to_input() {
                 }
             } break;
 
-            case SDL_EVENT_WINDOW_RESIZED: {
-                globals.window_width  = event.window.data1;
-                globals.window_height = event.window.data2;
+            case SDL_WINDOWEVENT: {
+                switch (event.window.event) {
+                    case SDL_WINDOWEVENT_RESIZED:
+                    case SDL_WINDOWEVENT_SIZE_CHANGED: {
+                        globals.window_width  = event.window.data1;
+                        globals.window_height = event.window.data2;
 
-                init_framebuffer();
+                        init_framebuffer();
+                    } break;
+                }
             }
         }
     }
@@ -510,26 +516,28 @@ static SDL_Window *create_window(int width, int height, char *title) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
-    SDL_Window *window = SDL_CreateWindow(title, width, height, window_flags);
+    SDL_Window *window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, window_flags);
     if (!window) {
         logprintf("Failed to create window!\n");
         return NULL;
     }
-    SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
 
     return window;
 }
 
 int main(int argc, char *argv[]) {
-    if (!SDL_Init(SDL_INIT_VIDEO)) {
+#ifdef _WIN32
+    void enable_dpi_awareness();
+    enable_dpi_awareness();
+#endif
+    
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0) {
         logprintf("Failed to initialize SDL!\n");
         return 1;
     }
     defer { SDL_Quit(); };
     
-    s64 srand_time;
-    SDL_GetCurrentTime(&srand_time);
-    srand((u32)srand_time);
+    srand((u32)get_time_nanoseconds());
 
     globals.window_width  = 1600;
     globals.window_height = 900;
@@ -542,15 +550,20 @@ int main(int argc, char *argv[]) {
     init_audio();
     defer { destroy_audio(); };
 
+    globals.level_background_music = load_sound("data/sounds/level-music.wav", true);
+    globals.coin_pickup_sfx    = load_sound("data/sounds/coin-pickup.wav", false);
+    globals.level_complete_sfx = load_sound("data/sounds/level-completed.wav", false);
+    globals.death_sfx = load_sound("data/sounds/death.wav", false);
+    globals.jump_sfx = load_sound("data/sounds/jump.wav", false);
+    
     if (!create_menu_world()) return 1;
     globals.current_world = globals.menu_world;
     
     int current_level_width = globals.start_level_width;
     //switch_to_random_world(current_level_width);
-    
-    SDL_GetCurrentTime(&globals.time_info.last_time);
-    s64 last_time;
-    SDL_GetCurrentTime(&last_time);
+
+    globals.time_info.last_time = get_time_nanoseconds();
+    s64 last_time = get_time_nanoseconds();
     while (!globals.should_quit_game) {
         globals.num_frames_since_startup++;
         
@@ -629,11 +642,7 @@ int main(int argc, char *argv[]) {
 
         s64 fps_cap_nanoseconds = 1000000000 / globals.time_info.fps_cap;
 
-        for (;;) {
-            //while (os_get_time_nanoseconds() <= last_time + fps_cap_nanoseconds) {
-            s64 time;
-            SDL_GetCurrentTime(&time);
-            if (time > last_time + fps_cap_nanoseconds) break;
+        while (get_time_nanoseconds() <= last_time + fps_cap_nanoseconds) {
             // @TODO: Maybe sleep.
         }
         last_time += fps_cap_nanoseconds;

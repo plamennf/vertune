@@ -3,6 +3,7 @@
 #include "resource_manager.h"
 #include "font.h"
 #include "world.h"
+#include "audio.h"
 
 static const Vector4 MENU_COLOR_TEXT      = v4(1.0f, 0.98f, 0.95f, 1); // clean warm white
 static const Vector4 MENU_COLOR_HIGHLIGHT = v4(1.0f, 0.45f, 0.2f, 1);  // rich orange accent
@@ -79,6 +80,7 @@ static void handle_enter() {
     if (choice == index_resume) {
         if (globals.current_world == globals.menu_world) {
             switch_to_random_world(globals.start_level_width);
+            play_sound(globals.level_background_music);
         }
         toggle_menu();
     } else if (choice == index_controls) {

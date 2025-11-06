@@ -84,3 +84,5 @@ char *break_by_comma(char *s);
 
 float fract(float value);
 float random_float();
+
+s64 get_time_nanoseconds();

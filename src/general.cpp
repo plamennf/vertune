@@ -355,11 +355,56 @@ extern "C" {
 }
 #endif
 
-int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, int show_code) {
-    int main(int argc, char *argv[]);
-#ifdef COMPILER_MSVC
-    return main(__argc, __argv);
-#endif
+// Call this before creating your SDL window or any GUI.
+void enable_dpi_awareness() {
+    // Try Windows 10+ per-monitor V2 awareness
+    HMODULE shcore = LoadLibraryA("Shcore.dll");
+    if (shcore) {
+        typedef HRESULT(WINAPI *SetProcessDpiAwarenessFn)(int);
+        SetProcessDpiAwarenessFn SetProcessDpiAwarenessPtr =
+            (SetProcessDpiAwarenessFn)GetProcAddress(shcore, "SetProcessDpiAwareness");
+        if (SetProcessDpiAwarenessPtr) {
+            // 2 = PROCESS_PER_MONITOR_DPI_AWARE
+            SetProcessDpiAwarenessPtr(2);
+            FreeLibrary(shcore);
+            return;
+        }
+        FreeLibrary(shcore);
+    }
+
+    // Try Windows 8.1+ API (SetProcessDpiAwarenessContext)
+    HMODULE user32 = LoadLibraryA("User32.dll");
+    if (user32) {
+        typedef BOOL(WINAPI *SetProcessDpiAwarenessContextFn)(HANDLE);
+        SetProcessDpiAwarenessContextFn SetProcessDpiAwarenessContextPtr =
+            (SetProcessDpiAwarenessContextFn)GetProcAddress(user32, "SetProcessDpiAwarenessContext");
+        if (SetProcessDpiAwarenessContextPtr) {
+            // -4 = DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
+            SetProcessDpiAwarenessContextPtr((HANDLE)(-4));
+            FreeLibrary(user32);
+            return;
+        }
+        FreeLibrary(user32);
+    }
+
+    // Fallback for Windows 7 and older
+    HMODULE user32_old = LoadLibraryA("User32.dll");
+    if (user32_old) {
+        typedef BOOL(WINAPI *SetProcessDPIAwareFn)(void);
+        SetProcessDPIAwareFn SetProcessDPIAwarePtr =
+            (SetProcessDPIAwareFn)GetProcAddress(user32_old, "SetProcessDPIAware");
+        if (SetProcessDPIAwarePtr) {
+            SetProcessDPIAwarePtr();
+        }
+        FreeLibrary(user32_old);
+    }
 }
 
 #endif
+
+s64 get_time_nanoseconds() {
+    Uint64 counter = SDL_GetPerformanceCounter();
+    Uint64 freq = SDL_GetPerformanceFrequency();
+    // Convert seconds → nanoseconds (1s = 1e9 ns)
+    return (Uint64)((counter * 1000000000ULL) / freq);
+}

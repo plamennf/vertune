@@ -5,12 +5,13 @@
 #include "array.h"
 #include "hash_table.h"
 
-#include <SDL3/SDL.h>
+#include <SDL.h>
 
 struct Shader;
 struct Framebuffer;
 struct World;
 struct Texture;
+struct Sound;
 
 const int MAX_RESTARTS = 3;
 const int MAX_FPS_CAP = 120;
@@ -97,6 +98,16 @@ struct Global_Variables {
     Texture *empty_heart       = NULL;
     Texture *restart_taken     = NULL;
     Texture *restart_available = NULL;
+
+    Sound *level_background_music = NULL;
+    Sound *menu_background_music = NULL;
+    Sound *jump_sfx = NULL;
+    Sound *damage_sfx = NULL;
+    Sound *enemy_kill_sfx = NULL;
+    Sound *level_complete_sfx = NULL;
+    Sound *death_sfx = NULL;
+    Sound *level_fail_sfx = NULL;
+    Sound *coin_pickup_sfx = NULL;
 };
 
 extern Global_Variables globals;
