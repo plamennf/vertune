@@ -11,6 +11,33 @@ inline float lerp(float a, float b, float t) {
     return a + t * (b - a);
 }
 
+inline float square_root(float value) {
+#ifdef HAS_INTRINSIC_SUPPORT
+    float result = _mm_cvtss_f32(_mm_sqrt_ss(_mm_set_ss(value)));
+#else
+    float result = sqrtf(value);
+#endif
+    return result;
+}
+
+inline s32 round_float32_to_s32(float value) {
+#ifdef HAS_INTRINSIC_SUPPORT
+    s32 result = _mm_cvtss_si32(_mm_set_ss(value));
+#else
+    s32 result = (s32)roundf(value);
+#endif
+    return result;
+}
+
+inline s32 floor_float32_to_s32(float value) {
+#ifdef HAS_INTRINSIC_SUPPORT
+    s32 result = _mm_cvtss_si32(_mm_floor_ss(_mm_setzero_ps(), _mm_set_ss(value)));
+#else
+    s32 result = (s32)floorf(value);
+#endif
+    return result;
+}
+
 inline int absolute_value(int value) {
     if (value < 0) return -value;
     return value;
@@ -18,21 +45,6 @@ inline int absolute_value(int value) {
 
 inline float absolute_value(float value) {
     float result = fabsf(value);
-    return result;
-}
-
-inline float square_root(float value) {
-    float result = _mm_cvtss_f32(_mm_sqrt_ss(_mm_set_ss(value)));
-    return result;
-}
-
-inline s32 round_float32_to_s32(float value) {
-    s32 result = _mm_cvtss_si32(_mm_set_ss(value));
-    return result;
-}
-
-inline s32 floor_float32_to_s32(float value) {
-    s32 result = _mm_cvtss_si32(_mm_floor_ss(_mm_setzero_ps(), _mm_set_ss(value)));
     return result;
 }
 

@@ -5,6 +5,7 @@
 #include <string.h>
 
 #ifdef COMPILER_MSVC
+#define HAS_INTRINSIC_SUPPORT
 #include <intrin.h>
 #endif
 
