@@ -124,6 +124,12 @@ void play_sound(Sound *sound) {
     sound->playing = true;
     sound->position = 0;
 
+    if (sound->looping) {
+        sound->volume = globals.master_volume * globals.music_volume;
+    } else {
+        sound->volume = globals.master_volume * globals.sfx_volume;
+    }
+    
     SDL_LockAudioDevice(audio_device);
     for (int i = 0; i < current_sounds.count; i++) {
         if (current_sounds[i] == sound) {
@@ -146,4 +152,14 @@ void free_sound(Sound *sound) {
     if (!sound->buffer) return;
     
     SDL_free(sound->buffer);
+}
+
+void update_volumes() {
+    for (Sound *sound : current_sounds) {
+        if (sound->looping) {
+            sound->volume = globals.master_volume * globals.music_volume;
+        } else {
+            sound->volume = globals.master_volume * globals.sfx_volume;
+        }
+    }
 }

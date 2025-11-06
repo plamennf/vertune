@@ -13,6 +13,7 @@ static const Vector4 MENU_COLOR_SHADOW    = v4(0.0f, 0.2f, 0.4f, 0.7f); // optio
 enum Menu_Page {
     MENU_PAGE_MAIN,
     MENU_PAGE_CONTROLS,
+    MENU_PAGE_SETTINGS,
 };
 
 static int current_menu_choice = 0;
@@ -26,8 +27,9 @@ static double time_of_quit_confirmation = -1.0;
 static double last_keypress_time = 0.0;
 
 static int index_resume   = -1;
-static int index_controls = -1;
 static int index_restart  = -1;
+static int index_controls = -1;
+static int index_settings = -1;
 static int index_quit     = -1;
 
 static int menu_items_total = 4; // Will get reset after first draw phase.
@@ -59,14 +61,34 @@ static void advance_menu_choice(int delta) {
     if (!menu_can_accept_input()) return;
     
     current_menu_choice += delta;
-    if (current_menu_choice == index_restart) {
-        if (globals.current_world == globals.menu_world) {
-            current_menu_choice += delta < 0 ? -1 : 1;
+
+    if (current_menu_page == MENU_PAGE_MAIN) {
+        if (current_menu_choice == index_restart) {
+            if (globals.current_world == globals.menu_world) {
+                current_menu_choice += delta < 0 ? -1 : 1;
+            }
         }
+        
+        if (current_menu_choice < 0) {
+            current_menu_choice += menu_items_total;
+        }
+        
+        if (current_menu_choice >= menu_items_total) {
+            current_menu_choice -= menu_items_total;
+        }
+
+        play_sound(globals.menu_change_option);
+    } else if (current_menu_page == MENU_PAGE_SETTINGS) {
+        if (current_menu_choice < 0) {
+            current_menu_choice += 3;
+        }
+
+        if (current_menu_choice >= 3) {
+            current_menu_choice -= 3;
+        }
+
+        play_sound(globals.menu_change_option);
     }
-    
-    if (current_menu_choice < 0)                 current_menu_choice += menu_items_total;
-    if (current_menu_choice >= menu_items_total) current_menu_choice -= menu_items_total;
     
     asking_for_restart_confirmation = false;
     asking_for_quit_confirmation = false;
@@ -74,7 +96,10 @@ static void advance_menu_choice(int delta) {
 
 static void handle_enter() {
     if (!menu_can_accept_input()) return;
+    if (current_menu_page != MENU_PAGE_MAIN) return;
     
+    play_sound(globals.menu_select);
+
     int choice = current_menu_choice;
     
     if (choice == index_resume) {
@@ -84,8 +109,6 @@ static void handle_enter() {
             play_sound(globals.level_background_music);
         }
         toggle_menu();
-    } else if (choice == index_controls) {
-        current_menu_page = MENU_PAGE_CONTROLS;
     } else if (choice == index_restart) {
         if (asking_for_restart_confirmation) {
             restart_current_world();
@@ -95,6 +118,11 @@ static void handle_enter() {
                 asking_for_restart_confirmation = true;
             }
         }
+    } else if (choice == index_controls) {
+        current_menu_page = MENU_PAGE_CONTROLS;
+    } else if (choice == index_settings) {
+        current_menu_page = MENU_PAGE_SETTINGS;
+        current_menu_choice = 0;
     } else if (choice == index_quit) {
         if (asking_for_quit_confirmation) globals.should_quit_game = true;
         else asking_for_quit_confirmation = true;
@@ -178,6 +206,15 @@ static void draw_menu_choices() {
     cursor_y -= stride;
 
     //
+    // Menu item: Restart
+    //
+
+    text = "Restart";
+    if (asking_for_restart_confirmation) text = "Restart? Are you sure?";
+    index_restart = draw_item(text, font, center_x, cursor_y, start_color);
+    cursor_y -= stride;
+    
+    //
     // Menu item: Controls
     //
 
@@ -185,12 +222,10 @@ static void draw_menu_choices() {
     cursor_y -= stride;
 
     //
-    // Menu item: Restart
+    // Menu item: Settings
     //
 
-    text = "Restart";
-    if (asking_for_restart_confirmation) text = "Restart? Are you sure?";
-    index_restart = draw_item(text, font, center_x, cursor_y, start_color);
+    index_settings = draw_item("Settings", font, center_x, cursor_y, start_color);
     cursor_y -= stride;
     
     //
@@ -218,7 +253,6 @@ static void draw_title() {
 
     Dynamic_Font *font = title_font;
     char *text = "Vertune";
-    //int x = (globals.render_width - font->get_string_width_in_pixels(text)) / 2;
     int x = get_x_pad();
     int y = globals.render_height - (int)(font->character_height * 1.5f);
     draw_text(font, text, x, y, v4(1, 1, 1, 1));
@@ -278,15 +312,99 @@ static void draw_controls() {
     }
 }
 
-void draw_main_menu() {
-/*
-    if (globals.is_in_pause_menu) {
-        draw_world(globals.current_world, true);
-    } else {
-        draw_world(globals.menu_world, true);
-    }
-*/
+static void draw_slider(int x, int y, float value, float max_value, float width, float height, Vector4 knob_color) {
+    set_shader(globals.shader_color);
+
+    Vector4 grey_color = v4(0.4f, 0.4f, 0.4f, 1.0f);
     
+    immediate_begin();
+    immediate_quad(v2((float)x, (float)y), v2(width, height), grey_color);
+
+    Vector2 knob_size = v2(height, height * 2.0f);
+    
+    Vector2 knob_position;
+    knob_position.x = (float)x + ((value / max_value) * width);
+    knob_position.y = y - knob_size.y * 0.5f + height * 0.5f;
+    
+    immediate_quad(knob_position, knob_size, knob_color);
+
+    immediate_flush();
+}
+
+static void draw_settings() {
+    clear_framebuffer(0.1f, 0.1f, 0.1f, 1.0f);
+    
+    int BIG_FONT_SIZE = (int)(globals.render_height * 0.0725f);
+    auto title_font   = get_font_at_size("Lora-BoldItalic", (int)(BIG_FONT_SIZE * 1.6f));
+    auto body_font    = get_font_at_size("Lora-Bold", (int)(BIG_FONT_SIZE * 0.9f));
+
+    set_shader(globals.shader_text);
+    rendering_2d(globals.render_width, globals.render_height);
+
+    set_blend_mode(BLEND_MODE_ALPHA);
+    set_cull_mode(CULL_MODE_OFF);
+    set_depth_test_mode(DEPTH_TEST_OFF);
+
+    Dynamic_Font *font = body_font;
+    char *text = "Settings";
+    int x = (globals.render_width - font->get_string_width_in_pixels(text)) / 2;
+    int y = globals.render_height - (int)(font->character_height * 1.5f);
+    draw_text(font, text, x, y, v4(1, 1, 1, 1));
+
+    int cursor_y = (int)(globals.render_height * 0.62);
+    int stride = (int)(1.4f * font->character_height);
+    
+    //
+    // Draw master volume
+    //
+    {
+        Vector4 knob_color = (current_menu_choice == 0) ? v4(1, 0.8f, 0.2f, 1) : v4(1, 1, 1, 1);
+        
+        set_shader(globals.shader_text);
+        char *text = "Master volume: ";
+        x = (int)(0.005f * globals.render_width);
+        draw_text(font, text, x, cursor_y, v4(1, 1, 1, 1));
+
+        x = (int)(globals.render_width * 0.45f);
+        draw_slider(x, cursor_y, globals.master_volume, 1.0f, 0.45f * globals.render_width, font->character_height * 0.5f, knob_color);
+
+        cursor_y -= stride;
+    }
+
+    //
+    // Draw music volume
+    //
+    {
+        Vector4 knob_color = (current_menu_choice == 1) ? v4(1, 0.8f, 0.2f, 1) : v4(1, 1, 1, 1);
+        
+        set_shader(globals.shader_text);
+        char *text = "Music volume: ";
+        x = (int)(0.005f * globals.render_width);
+        draw_text(font, text, x, cursor_y, v4(1, 1, 1, 1));
+
+        x = (int)(globals.render_width * 0.45f);
+        draw_slider(x, cursor_y, globals.music_volume, 1.0f, 0.45f * globals.render_width, font->character_height * 0.5f, knob_color);
+
+        cursor_y -= stride;
+    }
+
+    //
+    // Draw master volume
+    //
+    {
+        Vector4 knob_color = (current_menu_choice == 2) ? v4(1, 0.8f, 0.2f, 1) : v4(1, 1, 1, 1);
+        
+        set_shader(globals.shader_text);
+        char *text = "Sfx volume: ";
+        x = (int)(0.005f * globals.render_width);
+        draw_text(font, text, x, cursor_y, v4(1, 1, 1, 1));
+
+        x = (int)(globals.render_width * 0.45f);
+        draw_slider(x, cursor_y, globals.sfx_volume, 1.0f, 0.45f * globals.render_width, font->character_height * 0.5f, knob_color);
+    }
+}
+
+void draw_main_menu() {  
     draw_world(globals.current_world, true);
     
     set_shader(globals.shader_color);
@@ -304,8 +422,46 @@ void draw_main_menu() {
 
         case MENU_PAGE_CONTROLS: {
             draw_controls();
-            if (is_key_pressed(SDL_SCANCODE_ESCAPE)) {
+            if (is_key_pressed(SDL_SCANCODE_ESCAPE) || is_key_pressed(SDL_SCANCODE_BACKSPACE)) {
                 current_menu_page = MENU_PAGE_MAIN;
+                current_menu_choice = index_controls;
+                play_sound(globals.exit_menu);
+            }
+        } break;
+
+        case MENU_PAGE_SETTINGS: {
+            float *value_to_change = NULL;
+            if (current_menu_choice == 0) value_to_change = &globals.master_volume;
+            else if (current_menu_choice == 1) value_to_change = &globals.music_volume;
+            else if (current_menu_choice == 2) value_to_change = &globals.sfx_volume;
+            
+            if (is_key_down(SDL_SCANCODE_LEFT)) {
+                if (value_to_change) {
+                    *value_to_change -= 0.01f;
+
+                    if (*value_to_change < 0.0f) {
+                        *value_to_change = 0.0f;
+                    }
+                }
+
+                update_volumes();
+            } else if (is_key_down(SDL_SCANCODE_RIGHT)) {
+                if (value_to_change) {
+                    *value_to_change += 0.01f;
+
+                    if (*value_to_change > 1.0f) {
+                        *value_to_change = 1.0f;
+                    }
+                }
+
+                update_volumes();
+            }
+            
+            draw_settings();
+            if (is_key_pressed(SDL_SCANCODE_ESCAPE) || is_key_pressed(SDL_SCANCODE_BACKSPACE)) {
+                current_menu_page = MENU_PAGE_MAIN;
+                current_menu_choice = index_settings;
+                play_sound(globals.exit_menu);
             }
         } break;
     }

@@ -108,6 +108,14 @@ struct Global_Variables {
     Sound *death_sfx = NULL;
     Sound *level_fail_sfx = NULL;
     Sound *coin_pickup_sfx = NULL;
+
+    Sound *menu_change_option = NULL;
+    Sound *menu_select = NULL;
+    Sound *exit_menu = NULL;
+
+    float master_volume = 0.5f;
+    float sfx_volume = 1.0f;
+    float music_volume = 1.0f;
 };
 
 extern Global_Variables globals;

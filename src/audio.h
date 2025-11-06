@@ -18,3 +18,5 @@ void play_sound(Sound *sound);
 void stop_sound(Sound *sound);
 
 void free_sound(Sound *sound);
+
+void update_volumes();

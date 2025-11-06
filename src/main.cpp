@@ -551,7 +551,7 @@ int main(int argc, char *argv[]) {
     init_audio();
     defer { destroy_audio(); };
 
-    globals.menu_background_music = load_sound("data/sounds/menu-music.wav", false);
+    globals.menu_background_music = load_sound("data/sounds/menu-music.wav", true);
     globals.level_background_music = load_sound("data/sounds/level-music.wav", true);
     globals.coin_pickup_sfx    = load_sound("data/sounds/coin-pickup.wav", false);
     globals.level_complete_sfx = load_sound("data/sounds/level-completed.wav", false);
@@ -560,6 +560,10 @@ int main(int argc, char *argv[]) {
     globals.damage_sfx = load_sound("data/sounds/damage.wav", false);
     globals.enemy_kill_sfx = load_sound("data/sounds/enemy-kill.wav", false);
     globals.level_fail_sfx = load_sound("data/sounds/level-failed.wav", false);
+
+    globals.menu_change_option = load_sound("data/sounds/menu-change-option.wav", false);
+    globals.menu_select = load_sound("data/sounds/menu-select.wav", false);
+    globals.exit_menu = load_sound("data/sounds/exit-menu.wav", false);
     
     if (!create_menu_world()) return 1;
     globals.current_world = globals.menu_world;
