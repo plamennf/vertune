@@ -48,8 +48,9 @@ struct Texture;
 Texture *make_texture();
 void release_texture(Texture *texture);
 void load_texture_from_data(Texture *texture, int width, int height, Texture_Format format, u8 *data);
+Texture *load_texture_from_file(char *filepath);
 void update_texture(Texture *texture, int x, int y, int width, int height, u8 *data);
-void set_texture(int slot, Texture *texture);
+void set_texture(int slot, Texture *texture, bool point_sample = true);
 
 struct Framebuffer;
 Framebuffer *make_framebuffer(int width, int height);

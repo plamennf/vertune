@@ -69,11 +69,7 @@ static void update_time() {
     }
 }
 
-static void adjust_fps_cap_based_on_performance() {
-    static int slow_frame_count = 0;
-    static const int MAX_SLOW_FRAMES = 120; // e.g., wait ~2 seconds at 60 FPS
-    static int fast_frame_count = 0;
-    
+static void adjust_fps_cap_based_on_performance() {    
     int fps = 0;
     if (globals.time_info.fps_dt > 0.0) {
         fps = (int)(1.0 / globals.time_info.fps_dt);
@@ -82,25 +78,25 @@ static void adjust_fps_cap_based_on_performance() {
     }
     
     if (fps < globals.time_info.fps_cap * 0.9f) { // Only count if significantly below target
-        slow_frame_count++;
+        globals.time_info.slow_frame_count++;
     } else {
-        slow_frame_count = 0; // reset if performance recovers
+        globals.time_info.slow_frame_count = 0; // reset if performance recovers
     }
 
-    if (slow_frame_count > MAX_SLOW_FRAMES) {
+    if (globals.time_info.slow_frame_count > MAX_SLOW_FRAMES) {
         globals.time_info.fps_cap = Max(30, globals.time_info.fps_cap / 2);
-        slow_frame_count = 0;
+        globals.time_info.slow_frame_count = 0;
     }
 
     if (fps > globals.time_info.fps_cap * 1.1f) {
-        fast_frame_count++;
-        if (fast_frame_count > 300 && globals.time_info.fps_cap < 120) {
+        globals.time_info.fast_frame_count++;
+        if (globals.time_info.fast_frame_count > 300 && globals.time_info.fps_cap < 120) {
             globals.time_info.fps_cap *= 2;
             globals.time_info.fps_cap = Max(MAX_FPS_CAP, globals.time_info.fps_cap);
-            fast_frame_count = 0;
+            globals.time_info.fast_frame_count = 0;
         }
     } else {
-        fast_frame_count = 0;
+        globals.time_info.fast_frame_count = 0;
     }
 }
 
@@ -108,6 +104,12 @@ static void init_shaders() {
     globals.shader_color   = find_or_load_shader("color");
     globals.shader_texture = find_or_load_shader("texture");
     globals.shader_text    = find_or_load_shader("text");
+
+    globals.full_heart    = load_texture_from_file("data/textures/heart_full_16x16.png");
+    globals.half_heart    = load_texture_from_file("data/textures/heart_half_16x16.png");
+    globals.empty_heart   = load_texture_from_file("data/textures/heart_empty_16x16.png");
+    globals.restart_taken = load_texture_from_file("data/textures/restart_taken.png");
+    globals.restart_available = load_texture_from_file("data/textures/restart_available.png");
 }
 
 static void init_framebuffer() {

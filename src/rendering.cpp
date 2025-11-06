@@ -2,6 +2,25 @@
 #include "rendering.h"
 #include "font.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
+Texture *load_texture_from_file(char *filepath) {
+    int width, height, channels;
+    stbi_set_flip_vertically_on_load(1);
+    stbi_uc *data = stbi_load(filepath, &width, &height, &channels, 4);
+    if (!data) {
+        logprintf("Failed to load image '%s'.\n", filepath);
+        return NULL;
+    }
+    defer { stbi_image_free(data); };
+
+    Texture *texture = make_texture();
+    load_texture_from_data(texture, width, height, TEXTURE_FORMAT_RGBA8, data);
+
+    return texture;
+}
+
 void rendering_2d(int width, int height) {
     Matrix4 m = matrix4_identity();
     rendering_2d(width, height, m);
@@ -39,7 +58,7 @@ void draw_text(Dynamic_Font *font, char *text, int x, int y, Vector4 color) {
         Vector2 uv3 = v2(quad.u0, quad.v0);
 
         if (last_texture != quad.texture) {
-            set_texture(0, quad.texture);
+            set_texture(0, quad.texture, false);
             last_texture = quad.texture;
         }
 

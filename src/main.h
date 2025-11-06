@@ -10,9 +10,11 @@
 struct Shader;
 struct Framebuffer;
 struct World;
+struct Texture;
 
 const int MAX_RESTARTS = 3;
 const int MAX_FPS_CAP = 120;
+const int MAX_SLOW_FRAMES = 120;
 
 struct Fade_Transition {
     bool active = false;
@@ -39,8 +41,11 @@ struct Time_Info {
     u64 num_frames_since_last_fps_update = 0;
     double accumulated_fps_dt = 0.0;
     double fps_dt = 0.0;
-    
+
+    // Fps cap variables.
     int fps_cap = 120;
+    int slow_frame_count = 0;
+    int fast_frame_count = 0;
 };
 
 struct Global_Variables {
@@ -84,6 +89,12 @@ struct Global_Variables {
     int num_frames_since_startup = 0;
 
     Fade_Transition menu_fade;
+
+    Texture *full_heart        = NULL;
+    Texture *half_heart        = NULL;
+    Texture *empty_heart       = NULL;
+    Texture *restart_taken     = NULL;
+    Texture *restart_available = NULL;
 };
 
 extern Global_Variables globals;

@@ -133,6 +133,11 @@ void update_single_hero(Hero *hero, float dt) {
             hero->num_pickups++;
             schedule_for_destruction(pickup);
             hero->coin_flash_timer = COIN_FLASH_TIME;
+            if (hero->num_pickups >= world->num_pickups_needed_to_unlock_door) {
+                if (world->by_type._Door) {
+                    world->by_type._Door->locked = false;
+                }
+            }
         }
     }
 
@@ -145,8 +150,9 @@ void update_single_hero(Hero *hero, float dt) {
         
         Rectangle2 door_rect = { door->position.x, door->position.y, door->size.x, door->size.y };
         if (are_intersecting(hero_rect, door_rect)) {
-            //switch_to_next_world();
-            globals.should_switch_worlds = true;
+            if (!door->locked) {
+                globals.should_switch_worlds = true;
+            }
         }
     }
     

@@ -118,6 +118,70 @@ void update_world(World *world, float dt) {
     }
 }
 
+static void draw_health(Vector2 position, Vector2 size) {
+    if (!globals.current_world) return;
+    if (!globals.current_world->by_type._Hero) return;
+    
+    double health = globals.current_world->by_type._Hero->health;
+    
+    int max_hearts = 3;
+    int full_hearts = (int)health;
+    bool half_heart = (health - (double)full_hearts) >= 0.5;
+
+    set_shader(globals.shader_texture);
+    for (int i = 0; i < max_hearts; i++) {
+        Vector2 pos = v2(position.x + i * (size.x + 6), position.y);
+        Texture *texture = NULL;
+        if (i < full_hearts) texture = globals.full_heart;
+        else if (i == full_hearts && half_heart) texture = globals.half_heart;
+        else texture = globals.empty_heart;
+
+        set_texture(0, texture);
+        
+        immediate_begin();
+        immediate_quad(pos, size, v4(1, 1, 1, 1));
+        immediate_flush();
+    }
+}
+
+static void draw_pickups(Vector2 position, Vector2 size) {
+    World *world = globals.current_world;
+    if (!world) return;
+    
+    set_shader(globals.shader_color);
+    
+    immediate_begin();
+    immediate_circle(position + size * 0.5f, size.y * 0.5f, v4(1, 1, 0, 1));
+    immediate_flush();
+
+    set_shader(globals.shader_text);
+    //int font_size = (int)(0.05f * globals.render_height);
+    int font_size = (int)size.y;
+    Dynamic_Font *font = get_font_at_size("Inconsolata-Regular", font_size);
+    char text[256];
+    snprintf(text, sizeof(text), "%d/%d", world->by_type._Hero ? world->by_type._Hero->num_pickups : 0, world->num_pickups_needed_to_unlock_door);
+    int x = (int)(position.x + size.x);
+    int y = (int)(position.y) + font->character_height / 4;
+    draw_text(font, text, x, y, v4(1, 1, 0, 1));
+}
+
+static void draw_restarts(Vector2 position, Vector2 size) {
+    if (!globals.current_world) return;
+    
+    set_shader(globals.shader_texture);
+    for (int i = 0; i < MAX_RESTARTS; i++) {
+        Vector2 pos = v2(position.x + i * (size.x + 6), position.y);
+        Texture *texture = globals.restart_available;
+        if (i < globals.num_restarts_for_current_world) texture = globals.restart_taken;
+        
+        set_texture(0, texture);
+        
+        immediate_begin();
+        immediate_quad(pos, size, v4(1, 1, 1, 1));
+        immediate_flush();
+    }
+}
+
 void draw_world(World *world, bool skip_hud) {
     clear_framebuffer(0.2f, 0.5f, 0.8f, 1.0f);
 
@@ -175,41 +239,67 @@ void draw_world(World *world, bool skip_hud) {
     set_depth_test_mode(DEPTH_TEST_OFF);
 
     if (!skip_hud) {
-        int font_size = (int)(0.03f * globals.render_height);
+        Vector2 screen_space_health_position = world_space_to_screen_space(world, v2(0, VIEW_AREA_HEIGHT - 1.0f));
+        Vector2 screen_space_health_size = world_space_to_screen_space(world, v2(1, 1));
+        draw_health(screen_space_health_position, screen_space_health_size);
+
+        screen_space_health_position.y -= screen_space_health_size.y;
+        draw_pickups(screen_space_health_position, screen_space_health_size);
+
+        screen_space_health_position.y -= screen_space_health_size.y;
+        draw_restarts(screen_space_health_position, screen_space_health_size);
+        
+        /*
+          int font_size = (int)(0.03f * globals.render_height);
         Dynamic_Font *font = get_font_at_size("Inconsolata-Regular", font_size);
         char text[256];
         snprintf(text, sizeof(text), "Health: %.1lf", world->by_type._Hero ? world->by_type._Hero->health : 0.0);
         int x = 0;
         int y = globals.render_height - font->character_height;
-
+        
         Vector4 color = v4(0, 1, 0, 1);
         if ((world->by_type._Hero && world->by_type._Hero->health <= 0.0) ||
             !world->by_type._Hero) {
             color = v4(1, 0, 0, 1);
         }
         draw_text(font, text, x, y, color);
+        */
+
+        /*
+        int font_size = (int)(0.03f * globals.render_height);
+        Dynamic_Font *font = get_font_at_size("Inconsolata-Regular", font_size);
+        char text[256];
+        int x = 0;
+        int y = globals.render_height - font->character_height;
 
         y -= font->character_height;
+        /*
         snprintf(text, sizeof(text), "Pickups: %d/%d", world->by_type._Hero ? world->by_type._Hero->num_pickups : 0, world->num_pickups_needed_to_unlock_door);
-        color = v4(1, 1, 0, 1);
+        Vector4 color = v4(1, 1, 0, 1);
         draw_text(font, text, x, y, color);
+        */
 
+        /*
         y -= font->character_height;
         snprintf(text, sizeof(text), "Restarts: %d/%d", globals.num_restarts_for_current_world, MAX_RESTARTS);
-        color = v4(1, 0, 0, 1);
+        Vector4 color = v4(1, 0, 0, 1);
         draw_text(font, text, x, y, color);
+        */
         
         if (world->level_fade.active) {
-            font_size = (int)(0.15f * globals.render_height);
-            font = get_font_at_size("Inconsolata-Regular", font_size);
+            set_shader(globals.shader_text);
+            
+            int font_size = (int)(0.15f * globals.render_height);
+            Dynamic_Font *font = get_font_at_size("Inconsolata-Regular", font_size);
             float alpha = 1.0f;
             if (world->level_fade.timer > 1.0f) {
                 alpha = 1.0f - (world->level_fade.timer / (world->level_fade.duration + 0.0f));
             }
+            char text[256];
             snprintf(text, sizeof(text), "Level %d", world->level_fade.level_number);
-            x = (globals.render_width - font->get_string_width_in_pixels(text)) / 2;
-            y = globals.render_height - font->character_height;
-            color = v4(1, 1, 1, alpha);
+            int x = (globals.render_width - font->get_string_width_in_pixels(text)) / 2;
+            int y = globals.render_height - font->character_height;
+            Vector4 color = v4(1, 1, 1, alpha);
             draw_text(font, text, x, y, color);
         }
     }

@@ -1,14 +1,10 @@
-- Change the adjust_fps_cap_based_on_performance variables to be in globals not static.
-- Present health and number of pickups in a better way
-- Add more colors to the game(tiles and enemies)
+- Fix generation bug where the door is unreachable.
+- When starting a level start the camera zoomed out showing the whole level and then pan to the player while zooming in.
 - Add audio
 - Package the assets into a single package file and load it at startup. The package shouldn't be big.
 - Change the backend to SDL3 on every system even windows.
 - Make a build.macos and run.macos file
 - Save the high scores to a file.
 
-TODO:
-- Add audio.
-- Add game icon.
-- Add health and coin icons.
-- Add more content.
+For update after releasing the game:
+- Add more colors to the game(tiles and enemies)
