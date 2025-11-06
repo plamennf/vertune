@@ -29,12 +29,10 @@ jobs:
         run: |
              mkdir -p build
              pushd build
-             SRC_FILES=$(find ../src -name "*.cpp")
-             clang++ -std=c++20 -O2 -I../external/include $SRC_FILES \
+             clang++ -std=c++20 -O2 -I../external/include ../src/resource_manager.cpp ../src/rendering_opengl.cpp ../src/rendering.cpp ../src/packager/packager.cpp ../src/main_menu.cpp ../src/main.cpp ../src/general.cpp ../src/font.cpp ../src/audio.cpp ../src/entity.cpp ../src/world.cpp ../src/camera.cpp ../src/particles.cpp ../src/memory_arena.cpp ../src/tilemap.cpp ../src/text_file_handler.cpp ../src/mt19937-64.cpp \
              -L/usr/local/lib -lSDL2 -lGLEW -lfreetype -framework OpenGL \
              -o vertune
              popd
-
 
       - name: Create .app bundle
         run: |

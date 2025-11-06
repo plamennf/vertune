@@ -29,6 +29,8 @@ inline uintptr_t align_forward(uintptr_t ptr, size_t alignment) {
 void Memory_Arena::init(size_t _size) {
 #ifdef _WIN32
     base = VirtualAlloc(0, _size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+#else
+    base = malloc(_size);
 #endif
     size = _size;
     offset   = 0;
