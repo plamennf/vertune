@@ -1,4 +1,3 @@
-- Add submenu to the main/pause menus to allow control over master volume, music volume and sound effects volume.
 - Make logprintf print into a log.txt file that avoid corruption or data loss when a crash occurs.
 - Package the assets into the headers which are included when building. Because the assets are a few fonts and 5 textures. This also requires to change the font and shader code to allow reading from memory instead of from a file.
 - Save the high scores to a file. Preferably binary so that the players can't change the scores easily.

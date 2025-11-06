@@ -17,6 +17,9 @@ const int MAX_RESTARTS = 3;
 const int MAX_FPS_CAP = 120;
 const int MAX_SLOW_FRAMES = 120;
 
+const int AUDIO_FILE_MAGIC_NUMBER = 0x504C4159;
+const int AUDIO_FILE_VERSION = 1;
+
 struct Fade_Transition {
     bool active = false;
     float timer = 0.0f;
@@ -127,10 +130,6 @@ bool was_key_just_released(int key_code);
 double nanoseconds_to_seconds(u64 nanoseconds);
 u64 seconds_to_nanoseconds(double seconds);
 
-bool switch_to_world(char *world_name);
-void switch_to_first_world();
-void switch_to_next_world();
-
 void toggle_menu();
 bool switch_to_random_world(int total_width);
 bool restart_current_world();
@@ -138,3 +137,6 @@ bool restart_current_world();
 void start_menu_fade(World *world);
 void update_menu_fade(float dt);
 void draw_menu_fade_overlay();
+
+bool save_audio_settings();
+bool load_audio_settings();

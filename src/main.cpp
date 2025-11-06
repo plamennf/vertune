@@ -551,6 +551,12 @@ int main(int argc, char *argv[]) {
     init_audio();
     defer { destroy_audio(); };
 
+    if (!load_audio_settings()) {
+        globals.master_volume = 0.5f;
+        globals.music_volume = 1.0f;
+        globals.sfx_volume = 1.0f;
+    }
+
     globals.menu_background_music = load_sound("data/sounds/menu-music.wav", true);
     globals.level_background_music = load_sound("data/sounds/level-music.wav", true);
     globals.coin_pickup_sfx    = load_sound("data/sounds/coin-pickup.wav", false);
@@ -657,6 +663,8 @@ int main(int argc, char *argv[]) {
         }
         last_time += fps_cap_nanoseconds;
     }
+
+    save_audio_settings();
     
     return 0;
 }
@@ -727,4 +735,55 @@ void draw_menu_fade_overlay() {
         v4(0, 0, 0, alpha)
                    );
     immediate_flush();
+}
+
+bool save_audio_settings() {
+    FILE *file = fopen("audio.dat", "wb");
+    if (!file) {
+        logprintf("Failed to open 'audio.dat' for writing!\n");
+        return false;
+    }
+    defer { fclose(file); };
+
+    fwrite(&AUDIO_FILE_MAGIC_NUMBER, sizeof(int), 1, file);
+    fwrite(&AUDIO_FILE_VERSION, sizeof(int), 1, file);
+    fwrite(&globals.master_volume, sizeof(float), 1, file);
+    fwrite(&globals.music_volume, sizeof(float), 1, file);
+    fwrite(&globals.sfx_volume, sizeof(float), 1, file);
+
+    return true;
+}
+
+bool load_audio_settings() {
+    FILE *file = fopen("audio.dat", "rb");
+    if (!file) {
+        logprintf("Failed to open 'audio.dat' for reading!\n");
+        return false;
+    }
+    defer { fclose(file); };
+
+    int magic_number;
+    fread(&magic_number, sizeof(int), 1, file);
+    if (magic_number != AUDIO_FILE_MAGIC_NUMBER) {
+        logprintf("Invalid magic number for 'audio.dat'\n");
+        return false;
+    }
+
+    int version;
+    fread(&version, sizeof(int), 1, file);
+    if (version <= 0 || version > AUDIO_FILE_VERSION) {
+        logprintf("Invalid version for 'audio.dat'\n");
+        return false;
+    }
+
+    fread(&globals.master_volume, sizeof(float), 1, file);
+    clamp(&globals.master_volume, 0.0f, 1.0f);
+    
+    fread(&globals.music_volume, sizeof(float), 1, file);
+    clamp(&globals.music_volume, 0.0f, 1.0f);
+
+    fread(&globals.sfx_volume, sizeof(float), 1, file);
+    clamp(&globals.sfx_volume, 0.0f, 1.0f);
+
+    return true;
 }
