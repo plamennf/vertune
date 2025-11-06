@@ -493,14 +493,10 @@ bool load_shader(Shader *shader, char *file_data, char *filepath) {
 
     shader->program_id = p;
 
-#define GUL(name) shader->##name##_loc = glGetUniformLocation(p, #name)
-
-    GUL(object_to_proj_matrix);
-    GUL(view_to_proj_matrix);
-    GUL(world_to_view_matrix);
-    GUL(object_to_world_matrix);
-    
-#undef GUL
+    shader->object_to_proj_matrix = glGetUniformLocation(p, "object_to_proj_matrix");
+    shader->view_to_proj_matrix = glGetUniformLocation(p, "view_to_proj_matrix");
+    shader->world_to_view_matrix = glGetUniformLocation(p, "world_to_view_matrix");
+    shader->object_to_world_matrix = glGetUniformLocation(p, "object_to_world_matrix");
     
     return true;
 }
