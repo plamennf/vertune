@@ -38,7 +38,7 @@ jobs:
           SRC_FILES=$(find ../src -name "*.cpp")
 
           clang++ $SRC_FILES \
-            -std=c++20 -stdlib=libc++ -O2 \
+            -std=c++20 -DRENDER_OPENGL -stdlib=libc++ -O2 \
             -I../external/include -I"$LLVM_PREFIX/include" \
             -L"$LLVM_PREFIX/lib" -L/opt/homebrew/lib \
             -lSDL2 -lGLEW -lfreetype -framework OpenGL -framework Cocoa \

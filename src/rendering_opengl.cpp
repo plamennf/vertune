@@ -1,7 +1,5 @@
 #include "main.h"
 
-#ifdef RENDER_OPENGL
-
 #include "rendering.h"
 
 #include <GL/glew.h>
@@ -540,5 +538,3 @@ void refresh_transform() {
         set_matrix4(current_shader->object_to_world_matrix_loc, globals.object_to_world_matrix);
     }
 }
-
-#endif
