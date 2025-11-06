@@ -19,8 +19,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          arch -x86_64 /usr/local/bin/brew update || true
-          arch -x86_64 /usr/local/bin/brew install sdl2 glew freetype
+          arch -x86_64 brew update || true
+          arch -x86_64 brew install sdl2 glew freetype
 
       - name: Build Vertune
         shell: bash
