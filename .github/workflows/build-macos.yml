@@ -1,4 +1,4 @@
-name: Build macOS Distribution
+name: Build macOS Vertune
 
 on:
   push:
@@ -12,8 +12,6 @@ jobs:
 
     env:
       APP_NAME: Vertune
-      BUNDLE_ID: com.yourname.vertune
-      APP_VERSION: 1.0
 
     steps:
       - name: Checkout repository
@@ -44,38 +42,9 @@ jobs:
           mkdir -p dist/${APP_NAME}.app/Contents/Resources
           cp build/vertune dist/${APP_NAME}.app/Contents/MacOS/vertune
           cp assets.pak dist/${APP_NAME}.app/Contents/Resources/
-          cat <<EOF > dist/${APP_NAME}.app/Contents/Info.plist
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-  <dict>
-    <key>CFBundleName</key>
-    <string>${APP_NAME}</string>
-    <key>CFBundleDisplayName</key>
-    <string>${APP_NAME}</string>
-    <key>CFBundleExecutable</key>
-    <string>vertune</string>
-    <key>CFBundleIdentifier</key>
-    <string>${BUNDLE_ID}</string>
-    <key>CFBundleVersion</key>
-    <string>${APP_VERSION}</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>LSMinimumSystemVersion</key>
-    <string>10.12</string>
-  </dict>
-</plist>
-EOF
+          echo "Basic macOS app created"
 
-      - name: Code-sign .app (optional)
-        if: ${{ secrets.APPLE_ID && secrets.APP_SPECIFIC_PASSWORD }}
-        run: |
-          codesign --deep --force --options runtime \
-            --sign "Developer ID Application: Your Name (TEAMID)" \
-            dist/${APP_NAME}.app
-
-      - name: Zip the app for distribution
+      - name: Zip the app
         run: |
           cd dist
           zip -r ${APP_NAME}.zip ${APP_NAME}.app
