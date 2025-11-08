@@ -29,6 +29,7 @@ if %BuildDebug%==1 set LinkerFlags= /LIBPATH:"..\external\lib\Debug" /subsystem:
 if %BuildDebug%==0 set LinkerFlags= /LIBPATH:"..\external\lib\Release" /subsystem:windows %LinkerFlags%
 
 cl %CompilerFlags% %Defines%  /Fe:"vertune" ..\src\*.cpp ..\src\packager\packager.cpp /link %LinkerFlags% %Libs% resources.res
+cl %CompilerFlags% %Defines% /DSTB_IMAGE_IMPLEMENTATION /DPACKAGER_STANDALONE  /Fe:"packager" ..\src\general.cpp ..\src\packager\packager.cpp /link /opt:ref /incremental:no /LIBPATH:"..\external\lib" /subsystem:console SDL2.lib SDL2main.lib shell32.lib
 
 xcopy /y /d ..\external\lib\*.dll
 if %BuildDebug%==1 xcopy /y /d ..\external\lib\Debug\*.dll
@@ -37,3 +38,7 @@ if %BuildDebug%==0 xcopy /y /d ..\external\lib\Release\*.dll
 del *.obj
 
 popd
+
+build\packager.exe
+
+del build\packager.*

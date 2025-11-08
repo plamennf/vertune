@@ -247,7 +247,7 @@ static void draw_debug_hud() {
     char text[128];
     snprintf(text, sizeof(text), "FPS: %d", fps);
     int x = globals.render_width  - font->get_string_width_in_pixels(text);
-    int y = globals.render_height - 2 * font->character_height;
+    int y = globals.render_height - font->character_height - ((int)(0.08f * globals.render_height));
     draw_text(font, text, x, y, v4(1, 1, 1, 1));
 }
 
@@ -858,10 +858,6 @@ int main(int argc, char *argv[]) {
 
     save_audio_settings();
     save_highscores();
-
-#ifdef BUILD_DEBUG
-    create_package();
-#endif
     
     return 0;
 }

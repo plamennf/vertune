@@ -1,5 +1,7 @@
 .vs/
-audio.dat
+*.dat
 log.txt
-hiscores.dat
-vertune-windows-dist.zip
+*.zip
+*.pak
+build/
+dist/

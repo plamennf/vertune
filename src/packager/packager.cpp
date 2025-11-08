@@ -276,3 +276,15 @@ Package_Asset_Entry *find_asset_by_name(Package *package, char *name) {
 
     return NULL;
 }
+
+#ifdef PACKAGER_STANDALONE
+
+int main(int argc, char *argv[]) {
+    if (!create_package()) {
+        return 1;
+    }
+
+    return 0;
+}
+
+#endif
