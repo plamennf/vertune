@@ -5,3 +5,4 @@ log.txt
 *.pak
 build/
 dist/
+cloc*.exe
