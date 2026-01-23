@@ -245,6 +245,8 @@ void main() {
 }
 
 static void load_assets() {
+    MyZoneScoped;
+    
     Texture *white_texture = make_texture();
     u8 white_texture_data[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
     load_texture_from_data(white_texture, 1, 1, TEXTURE_FORMAT_RGBA8, white_texture_data);
@@ -308,6 +310,8 @@ static void init_framebuffer() {
 }
 
 static void draw_debug_hud() {
+    MyZoneScoped;
+    
     set_shader(globals.shader_text);
     rendering_2d(globals.render_width, globals.render_height);
 
@@ -376,6 +380,8 @@ static void respond_to_input() {
 }
 
 static void generate_random_level(World *world, int level_width, int level_height) {
+    MyZoneScoped;
+    
     if (!world) return;
 
     if (!world->tilemap) {
@@ -509,6 +515,8 @@ static void generate_random_level(World *world, int level_width, int level_heigh
 }
 
 bool create_menu_world() {
+    MyZoneScoped;
+    
     globals.menu_world = new World();
     init_world(globals.menu_world, v2i(20, 18));
 
@@ -521,6 +529,8 @@ bool create_menu_world() {
 }
 
 bool switch_to_random_world(int total_width) {
+    MyZoneScoped;
+    
     if (globals.current_world && globals.current_world != globals.menu_world) {
         destroy_world(globals.current_world);
         delete globals.current_world;
@@ -588,6 +598,8 @@ bool switch_to_random_world(int total_width) {
 }
 
 bool restart_current_world() {
+    MyZoneScoped;
+    
     if (!globals.current_world) return false;
     assert(globals.current_world);
 
@@ -609,6 +621,8 @@ bool restart_current_world() {
 }
 
 static void draw_end_screen() {
+    MyZoneScoped;
+    
     set_shader(globals.shader_color);
     rendering_2d(globals.render_width, globals.render_height, matrix4_identity());
     
@@ -905,6 +919,10 @@ static void main_loop() {
         // @TODO: Maybe sleep.
     }
     globals.time_info.sync_last_time += fps_cap_nanoseconds;
+
+#ifndef __EMSCRIPTEN__
+    FrameMark;
+#endif
 }
 
 int main(int argc, char *argv[]) {    

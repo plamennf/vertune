@@ -14,8 +14,8 @@ pushd build
 
 rc.exe /fo resources.res ..\resource.rc
 
-set CompilerFlags= /Oi /fp:fast /fp:except- /Zi /FC /nologo /W3 /I ..\external\include /std:c++20 /Zc:strictStrings- /EHsc-
-set Defines= /D_CRT_SECURE_NO_WARNINGS /DRENDER_OPENGL /DOS_WINDOWS /DCOMPILER_MSVC /DUNICODE /D_UNICODE
+set CompilerFlags= /Oi /fp:fast /fp:except- /Zi /FC /nologo /W3 /I ..\external\include /std:c++20 /Zc:strictStrings- /EHsc- /I ..\tracy
+set Defines= /D_CRT_SECURE_NO_WARNINGS /DRENDER_OPENGL /DOS_WINDOWS /DCOMPILER_MSVC /DUNICODE /D_UNICODE /DTRACY_ENABLE
 set LinkerFlags= /opt:ref /incremental:no /LIBPATH:"..\external\lib"
 set Libs= SDL2.lib SDL2main.lib glew32.lib opengl32.lib freetype.lib shell32.lib
 
@@ -28,7 +28,7 @@ if %BuildDebug%==0 set Defines= /DNDEBUG /DBUILD_RELEASE /DUSE_PACKAGE %Defines%
 if %BuildDebug%==1 set LinkerFlags= /LIBPATH:"..\external\lib\Debug" /subsystem:console %LinkerFlags%
 if %BuildDebug%==0 set LinkerFlags= /LIBPATH:"..\external\lib\Release" /subsystem:windows %LinkerFlags%
 
-cl %CompilerFlags% %Defines%  /Fe:"vertune" ..\src\*.cpp ..\src\packager\packager.cpp /link %LinkerFlags% %Libs% resources.res
+cl %CompilerFlags% %Defines%  /Fe:"vertune" ..\src\*.cpp ..\src\packager\packager.cpp ..\tracy\TracyClient.cpp /link %LinkerFlags% %Libs% resources.res
 cl %CompilerFlags% %Defines% /DSTB_IMAGE_IMPLEMENTATION /DPACKAGER_STANDALONE  /Fe:"packager" ..\src\general.cpp ..\src\packager\packager.cpp /link /opt:ref /incremental:no /LIBPATH:"..\external\lib" /subsystem:console SDL2.lib SDL2main.lib shell32.lib
 
 xcopy /y /d ..\external\lib\*.dll

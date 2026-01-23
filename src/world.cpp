@@ -28,6 +28,8 @@ void init_world(World *world, Vector2i size) {
 }
 
 void update_world(World *world, float dt) {
+    MyZoneScoped;
+    
     bool camera_intro = false;
     if (world && world->camera && world->camera->intro_active) camera_intro = true;
     
@@ -186,6 +188,8 @@ static void draw_restarts(Vector2 position, Vector2 size) {
 }
 
 void draw_world(World *world, bool skip_hud) {
+    MyZoneScoped;
+    
     clear_framebuffer(0.2f, 0.5f, 0.8f, 1.0f);
 
     set_shader(globals.shader_color);
@@ -314,6 +318,8 @@ void destroy_world(World *world) {
 }
 
 static Tilemap *copy_tilemap(Tilemap *tilemap) {
+    MyZoneScoped;
+    
     if (!tilemap) return nullptr;
 
     Tilemap *result = new Tilemap();
@@ -345,6 +351,8 @@ static Tilemap *copy_tilemap(Tilemap *tilemap) {
 }
 
 World *copy_world(World *world) {
+    MyZoneScoped;
+    
     if (!world) return NULL;
     
     World *result = new World();

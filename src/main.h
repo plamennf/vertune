@@ -1,5 +1,13 @@
 #pragma once
 
+#include <tracy/Tracy.hpp>
+
+#ifdef __EMSCRIPTEN__
+#define MyZoneScoped
+#else
+#define MyZoneScoped ZoneScoped
+#endif
+
 #include "general.h"
 #include "geometry.h"
 #include "array.h"
