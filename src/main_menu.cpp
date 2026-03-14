@@ -93,8 +93,8 @@ static void advance_menu_choice(int delta) {
             current_menu_choice += 3;
         }
 
-        if (current_menu_choice >= 3) {
-            current_menu_choice -= 3;
+        if (current_menu_choice >= 4) {
+            current_menu_choice -= 4;
         }
 
         play_sound(globals.menu_change_option);
@@ -350,12 +350,7 @@ static void draw_controls() {
 static void draw_slider(int x, int y, float value, float max_value, float width, float height, Vector4 knob_color) {
     set_shader(globals.shader_color);
 
-#ifdef __EMSCRIPTEN__
-    Vector4 grey_color = v4(0.55f, 0.55f, 0.55f, 1.0f);
-    grey_color = v4(0.4f, 0.4f, 0.4f, 1.0f);
-#else
     Vector4 grey_color = v4(0.4f, 0.4f, 0.4f, 1.0f);
-#endif
     
     immediate_begin();
     immediate_quad(v2((float)x, (float)y), v2(width, height), grey_color);
@@ -446,6 +441,27 @@ static void draw_settings() {
 
         x = (int)(globals.render_width * 0.45f);
         draw_slider(x, cursor_y, globals.sfx_volume, 1.0f, 0.45f * globals.render_width, font->character_height * 0.5f, knob_color);
+
+        cursor_y -= stride;
+    }
+
+    //
+    // Draw enable lighting
+    //
+    {
+        set_shader(globals.shader_text);
+
+        char *text = "Enable lighting:";
+        x = (int)(0.005f * globals.render_width);
+        draw_text(font, text, x, cursor_y, v4(1, 1, 1, 1));
+
+        text = globals.enable_lighting ? "Yes" : "No";
+
+        x = (int)(globals.render_width * 0.45f);
+        
+        draw_text(font, text, x, cursor_y, (current_menu_choice == 3) ? v4(1, 0.8f, 0.2f, 1) : v4(1, 1, 1, 1));
+        
+        cursor_y -= stride;
     }
 }
 
@@ -549,6 +565,12 @@ void draw_main_menu() {
                 }
 
                 update_volumes();
+            }
+
+            if (is_key_pressed(SDL_SCANCODE_RETURN)) {
+                if (current_menu_choice == 3) {
+                    globals.enable_lighting = !globals.enable_lighting;
+                }
             }
             
             draw_settings();

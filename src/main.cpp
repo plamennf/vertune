@@ -1193,6 +1193,9 @@ bool save_audio_settings() {
     fwrite(&globals.music_volume, sizeof(float), 1, file);
     fwrite(&globals.sfx_volume, sizeof(float), 1, file);
 
+    int enable_lighting = globals.enable_lighting ? 1 : 0;
+    fwrite(&enable_lighting, sizeof(int), 1, file);
+    
     fflush(file);
     fclose(file);
 
@@ -1231,6 +1234,10 @@ bool load_audio_settings() {
 
     fread(&globals.sfx_volume, sizeof(float), 1, file);
     clamp(&globals.sfx_volume, 0.0f, 1.0f);
+
+    int enable_lighting;
+    fread(&enable_lighting, sizeof(int), 1, file);
+    globals.enable_lighting = enable_lighting ? true : false;
 
     return true;
 }

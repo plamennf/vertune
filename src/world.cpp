@@ -273,7 +273,7 @@ void draw_world(World *world, bool skip_hud) {
     
     clear_framebuffer(0.2f, 0.5f, 0.8f, 1.0f);
 
-    bool use_lighting = world->by_type._Light.count > 0;
+    bool use_lighting = world->by_type._Light.count > 0 && globals.enable_lighting;
     if (use_lighting) {
         set_shader(globals.shader_lighting);
     } else {

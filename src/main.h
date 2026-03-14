@@ -140,6 +140,8 @@ struct Global_Variables {
 
     Array <int> highscores;
     int current_level_width = 20;
+
+    bool enable_lighting = true;
     
 #ifdef USE_PACKAGE
     Package package;
