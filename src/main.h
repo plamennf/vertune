@@ -1,11 +1,15 @@
 #pragma once
 
+#ifdef TRACY_ENABLED
 #include <tracy/Tracy.hpp>
+#endif
 
-#ifdef __EMSCRIPTEN__
+#if defined(__EMSCRIPTEN__) || !defined(TRACY_ENABLED)
 #define MyZoneScoped
+#define MyFrameMark
 #else
 #define MyZoneScoped ZoneScoped
+#define MyFrameMark  FrameMark
 #endif
 
 #include "general.h"
@@ -60,7 +64,7 @@ struct Time_Info {
     double fps_dt = 0.0;
 
     // Fps cap variables.
-    int fps_cap = 120;
+    int fps_cap = MAX_FPS_CAP;
     int slow_frame_count = 0;
     int fast_frame_count = 0;
 };

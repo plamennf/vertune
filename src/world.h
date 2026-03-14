@@ -35,7 +35,7 @@ struct World {
     Array <Entity *> all_entities;
 
     Array <Entity *> entities_to_be_destroyed;
-
+    
     int num_pickups_needed_to_unlock_door = 0;
     Level_Fade level_fade;
     bool level_intro = true;

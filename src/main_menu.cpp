@@ -7,10 +7,13 @@
 
 #include <stdio.h>
 
-static const Vector4 MENU_COLOR_TEXT      = v4(1.0f, 0.98f, 0.95f, 1); // clean warm white
-static const Vector4 MENU_COLOR_HIGHLIGHT = v4(1.0f, 0.45f, 0.2f, 1);  // rich orange accent
-static const Vector4 MENU_COLOR_SUBTEXT   = v4(0.45f, 0.5f, 0.6f, 1);  // muted blue-gray
-static const Vector4 MENU_COLOR_SHADOW    = v4(0.0f, 0.2f, 0.4f, 0.7f); // optional text shadow
+// The main menu code architecture is inspired by Jonathan Blow's stream/video:
+// https://www.youtube.com/watch?v=AAFkdrP1CHQ
+
+static const Vector4 MENU_COLOR_TEXT      = v4(1.0f, 0.98f, 0.95f, 1);
+static const Vector4 MENU_COLOR_HIGHLIGHT = v4(1.0f, 0.45f, 0.2f, 1);
+static const Vector4 MENU_COLOR_SUBTEXT   = v4(0.45f, 0.5f, 0.6f, 1);
+static const Vector4 MENU_COLOR_SHADOW    = v4(0.0f, 0.2f, 0.4f, 0.7f);
 
 enum Menu_Page {
     MENU_PAGE_MAIN,
@@ -320,11 +323,17 @@ static void draw_controls() {
     };
 
     Control_Pair pairs[] = {
-        { "Move Left", "A" },
-        { "Move Right", "D" },
-        { "Jump", "W" },
+        { "Move Left", "A, Left Arrow" },
+        { "Move Right", "D, Right Arrow" },
+        { "Jump", "W, Up Arrow, Space" },
         { "Toggle FPS hud", "F" },
         { "Toggle fullscreen", "F11" },
+#ifdef __EMSCRIPTEN__
+        { "Exit fullscreen", "Escape" },
+        { "Pause the game", "Tab, P" },
+#else
+        { "Pause the game", "Escape, Tab, P" }
+#endif
     };
 
     int cursor_y = (int)(globals.render_height * 0.62);
@@ -343,6 +352,7 @@ static void draw_slider(int x, int y, float value, float max_value, float width,
 
 #ifdef __EMSCRIPTEN__
     Vector4 grey_color = v4(0.55f, 0.55f, 0.55f, 1.0f);
+    grey_color = v4(0.4f, 0.4f, 0.4f, 1.0f);
 #else
     Vector4 grey_color = v4(0.4f, 0.4f, 0.4f, 1.0f);
 #endif
@@ -351,9 +361,14 @@ static void draw_slider(int x, int y, float value, float max_value, float width,
     immediate_quad(v2((float)x, (float)y), v2(width, height), grey_color);
 
     Vector2 knob_size = v2(height, height * 2.0f);
+
+    float max_knob_position_x = (float)x + (max_value * width);
     
     Vector2 knob_position;
     knob_position.x = (float)x + ((value / max_value) * width);
+    if (knob_position.x > max_knob_position_x - knob_size.x) {
+        knob_position.x = max_knob_position_x - knob_size.x;
+    }
     knob_position.y = y - knob_size.y * 0.5f + height * 0.5f;
     
     immediate_quad(knob_position, knob_size, knob_color);

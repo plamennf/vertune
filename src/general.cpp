@@ -440,6 +440,28 @@ void enable_dpi_awareness() {
     }
 }
 
+void move_file(char *old_filepath, char *new_filepath) {
+    wchar_t wide_old_filepath[1024];
+    MultiByteToWideChar(CP_UTF8, 0, old_filepath, -1, wide_old_filepath, ArrayCount(wide_old_filepath));
+
+    for (wchar_t *at = wide_old_filepath; *at; at++) {
+        if (*at == L'/') {
+            *at = L'\\';
+        }
+    }
+
+    wchar_t wide_new_filepath[1024];
+    MultiByteToWideChar(CP_UTF8, 0, new_filepath, -1, wide_new_filepath, ArrayCount(wide_new_filepath));
+
+    for (wchar_t *at = wide_new_filepath; *at; at++) {
+        if (*at == L'/') {
+            *at = L'\\';
+        }
+    }
+
+    MoveFileExW(wide_old_filepath, wide_new_filepath, MOVEFILE_REPLACE_EXISTING);
+}
+
 #endif
 
 s64 get_time_nanoseconds() {

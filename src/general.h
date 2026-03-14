@@ -82,6 +82,7 @@ void logprintf(char *fmt, ...);
 
 char *read_entire_file(char *filepath, s64 *length_pointer = NULL, bool zero_terminate = true);
 bool file_exists(char *filepath);
+void move_file(char *old_filepath, char *new_filepath);
 
 char *break_by_space(char *s);
 char *break_by_comma(char *s);

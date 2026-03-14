@@ -69,20 +69,17 @@ static Loaded_Font *get_loaded_font(char *name) {
 
 #ifdef USE_PACKAGE
 static Loaded_Font *get_loaded_font_from_package(char *name) {
-    // Check if already loaded
     for (int i = 0; i < loaded_fonts.count; i++) {
         Loaded_Font *font = loaded_fonts[i];
         if (strings_match(font->name, name)) return font;
     }
 
-    // Look up asset in your package
     Package_Asset_Entry *entry = find_asset_by_name(&globals.package, name);
     if (!entry) {
         logprintf("No font '%s' found in asset package.\n", name);
         return NULL;
     }
 
-    // Pointer to font data in memory
     u8 *font_data = entry->data;
     s64 font_size = entry->size;
 

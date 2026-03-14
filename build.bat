@@ -3,7 +3,7 @@
 REM Check if a command line argument was passed
 if "%~1"=="" (
     REM No argument, keep the default value
-    set BuildDebug=1
+    set BuildDebug=0
 ) else (
     REM Use the value passed as argument
     set BuildDebug=%~1
@@ -15,11 +15,11 @@ pushd build
 rc.exe /fo resources.res ..\resource.rc
 
 set CompilerFlags= /Oi /fp:fast /fp:except- /Zi /FC /nologo /W3 /I ..\external\include /std:c++20 /Zc:strictStrings- /EHsc- /I ..\tracy
-set Defines= /D_CRT_SECURE_NO_WARNINGS /DRENDER_OPENGL /DOS_WINDOWS /DCOMPILER_MSVC /DUNICODE /D_UNICODE /DTRACY_ENABLE
+set Defines= /D_CRT_SECURE_NO_WARNINGS /DRENDER_OPENGL /DOS_WINDOWS /DCOMPILER_MSVC /DUNICODE /D_UNICODE
 set LinkerFlags= /opt:ref /incremental:no /LIBPATH:"..\external\lib"
 set Libs= SDL2.lib SDL2main.lib glew32.lib opengl32.lib freetype.lib shell32.lib
 
-if %BuildDebug%==1 set CompilerFlags= /Od /Ob0 /MTd %CompilerFlags%
+if %BuildDebug%==1 set CompilerFlags= /Od /Ob0 /MTd /DTRACY_ENABLED %CompilerFlags%
 if %BuildDebug%==0 set CompilerFlags= /O2 /Ob2 /MT %CompilerFlags%
 
 if %BuildDebug%==1 set Defines= /D_DEBUG /DBUILD_DEBUG /DPFNGE_DEBUG %Defines%

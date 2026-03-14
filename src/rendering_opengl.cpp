@@ -444,7 +444,7 @@ bool load_shader(Shader *shader, char *file_data, char *filepath) {
     
     char *vertex_source[] = {
 #ifdef __EMSCRIPTEN__
-        "#version 300 es\n#define VERTEX_SHADER\n#define OUT_IN out\n#define SGLESS\n#line 1 1\n",
+        "#version 300 es\n#define VERTEX_SHADER\n#define OUT_IN out\n#define SGLES\n#line 1 1\n",
 #else
         "#version 330 core\n#define VERTEX_SHADER\n#define OUT_IN out\n#line 1 1\n",
 #endif
@@ -466,7 +466,7 @@ bool load_shader(Shader *shader, char *file_data, char *filepath) {
 
     char *fragment_source[] = {
 #ifdef __EMSCRIPTEN__   
-        "#version 300 es\n#define FRAGMENT_SHADER\n#define OUT_IN in\n#define SGLESS\n#line 1 1\n",
+        "#version 300 es\n#define FRAGMENT_SHADER\n#define OUT_IN in\n#define SGLES\n#line 1 1\n",
 #else
         "#version 330 core\n#define FRAGMENT_SHADER\n#define OUT_IN in\n#line 1 1\n",
 #endif

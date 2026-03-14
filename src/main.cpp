@@ -139,7 +139,7 @@ out vec4 o_color;
 
 void main() {
 #ifdef SGLES
-    o_color = vec4(pow(v_color.xyz, vec3(1.0 / 2.2)), 1.0);
+    o_color = vec4(pow(v_color.xyz, vec3(1.0 / 2.2)), v_color.a);
 #else
     o_color = v_color;
 #endif
@@ -181,7 +181,8 @@ void main() {
     vec4 tex_color = texture(tex, v_uv);
 
 #ifdef SGLES
-    o_color = vec4(pow(v_color.xyz * tex_color.xyz, vec3(1.0 / 2.2)), 1.0);
+    tex_color.xyz = pow(tex_color.xyz, vec3(2.2));
+    o_color = vec4(pow(v_color.xyz * tex_color.xyz, vec3(1.0 / 2.2)), v_color.a * tex_color.a);
 #else
     o_color = v_color * tex_color;
 #endif
@@ -220,21 +221,11 @@ out vec4 o_color;
 
 uniform sampler2D tex;
 
-vec3 to_linear(vec3 c) {
-    return pow(c, vec3(2.2));
-}
-
-vec3 to_srgb(vec3 c) {
-    return pow(c, vec3(1.0/2.2));
-}
-
 void main() {
     vec4 tex_color = texture(tex, v_uv);
     tex_color = vec4(1.0, 1.0, 1.0, tex_color.r);
 #ifdef SGLES
-    //vec3 linear_color = tex_color.rgb;
-    //linear_color = linear_color * tex_color.a + ;
-    o_color = vec4(pow(v_color.xyz, vec3(1.0 / 2.2)), 1.0);
+    o_color = vec4(pow(v_color.xyz * tex_color.xyz, vec3(1.0 / 2.2)), v_color.a * tex_color.a);
 #else
     o_color = v_color * tex_color;
 #endif
@@ -688,64 +679,25 @@ EM_BOOL resize_callback(int event_type, const void *e, void *user_data) {
     return EM_TRUE;
 }
 
-/*
-static void toggle_fullscreen(SDL_Window *window) {
-    EmscriptenFullscreenStrategy strategy;
-    memset(&strategy, 0, sizeof(strategy));
-    strategy.scaleMode = EMSCRIPTEN_FULLSCREEN_SCALE_ASPECT;
-    strategy.filteringMode = EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT;
-    strategy.canvasResizedCallback = resize_callback;
-    strategy.canvasResizedCallbackUserData = NULL;
-
-    emscripten_request_fullscreen_strategy("#canvas", true, &strategy);
-}
-*/
-
-static void toggle_fullscreen(SDL_Window *window) {
-    Uint32 flags = SDL_GetWindowFlags(window);
-    bool is_fullscreen = (flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0;
-
-    if (is_fullscreen) {
-        // Go back to windowed mode
-        SDL_SetWindowFullscreen(window, 0);
-        SDL_SetWindowBordered(window, SDL_TRUE);
-        SDL_SetWindowResizable(window, SDL_TRUE);
-        SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-        // optional: SDL_SetWindowSize(window, 1280, 720);
-    } else {
-        // Go fullscreen (borderless desktop fullscreen)
-        SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
-        SDL_SetWindowBordered(window, SDL_FALSE);
-    }
-
-    SDL_GetWindowSize(window, &globals.window_width, &globals.window_height);
-    init_framebuffer();
-}
-
-#else
-
-static void toggle_fullscreen(SDL_Window *window) {
-    Uint32 flags = SDL_GetWindowFlags(window);
-    bool is_fullscreen = (flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0;
-
-    if (is_fullscreen) {
-        // Go back to windowed mode
-        SDL_SetWindowFullscreen(window, 0);
-        SDL_SetWindowBordered(window, SDL_TRUE);
-        SDL_SetWindowResizable(window, SDL_TRUE);
-        SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-        // optional: SDL_SetWindowSize(window, 1280, 720);
-    } else {
-        // Go fullscreen (borderless desktop fullscreen)
-        SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
-        SDL_SetWindowBordered(window, SDL_FALSE);
-    }
-
-    SDL_GetWindowSize(window, &globals.window_width, &globals.window_height);
-    init_framebuffer();
-}
-
 #endif
+
+static void toggle_fullscreen(SDL_Window *window) {
+    Uint32 flags = SDL_GetWindowFlags(window);
+    bool is_fullscreen = (flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0;
+
+    if (is_fullscreen) {
+        SDL_SetWindowFullscreen(window, 0);
+        SDL_SetWindowBordered(window, SDL_TRUE);
+        SDL_SetWindowResizable(window, SDL_TRUE);
+        SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+    } else {
+        SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+        SDL_SetWindowBordered(window, SDL_FALSE);
+    }
+
+    SDL_GetWindowSize(window, &globals.window_width, &globals.window_height);
+    init_framebuffer();
+}
 
 static SDL_Window *create_window(int width, int height, char *title) {
     Uint32 window_flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE;
@@ -781,8 +733,8 @@ static SDL_Window *create_window(int width, int height, char *title) {
         globals.gl_context = SDL_GL_CreateContext(window);
         if (!globals.gl_context) {
             logprintf("Failed to create opengl context!\n");
-        SDL_DestroyWindow(globals.window);
-        return NULL;
+            SDL_DestroyWindow(globals.window);
+            return NULL;
         }
 #else
         logprintf("Failed to create opengl context!\n");
@@ -837,7 +789,7 @@ static void init_window_size(int *width, int *height) {
 
 static void main_loop() {
     globals.num_frames_since_startup++;
-        
+    
     if (globals.should_switch_worlds) {
         bool should_restart_level = false;
         if (globals.current_world) {
@@ -860,7 +812,7 @@ static void main_loop() {
         
     update_time();
     adjust_fps_cap_based_on_performance();
-        
+    
     for (int i = 0; i < ArrayCount(key_states); i++) {
         Key_State *state = &key_states[i];
         state->was_down  = state->is_down;
@@ -872,7 +824,7 @@ static void main_loop() {
     if (globals.program_mode == PROGRAM_MODE_GAME) {
         update_world(globals.current_world, (float)globals.time_info.delta_time_seconds);
 
-        if (is_key_pressed(SDL_SCANCODE_ESCAPE)) {
+        if (is_key_pressed(SDL_SCANCODE_ESCAPE) || is_key_pressed(SDL_SCANCODE_TAB) || is_key_pressed(SDL_SCANCODE_P)) {
             toggle_menu();
         } else if (is_key_pressed(SDL_SCANCODE_F)) {
             globals.draw_debug_hud = !globals.draw_debug_hud;
@@ -910,18 +862,20 @@ static void main_loop() {
         blit_framebuffer_to_back_buffer_with_letter_boxing(globals.offscreen_buffer);
 #endif
     }
-        
+    
     swap_buffers();
 
+#ifndef __EMSCRIPTEN__
     s64 fps_cap_nanoseconds = 1000000000 / globals.time_info.fps_cap;
 
     while (get_time_nanoseconds() <= globals.time_info.sync_last_time + fps_cap_nanoseconds) {
         // @TODO: Maybe sleep.
     }
     globals.time_info.sync_last_time += fps_cap_nanoseconds;
+#endif
 
 #ifndef __EMSCRIPTEN__
-    FrameMark;
+    MyFrameMark;
 #endif
 }
 
@@ -965,7 +919,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0) {
         logprintf("Failed to initialize SDL!\n");
         return 1;
@@ -989,8 +942,8 @@ int main(int argc, char *argv[]) {
 
 #ifdef __EMSCRIPTEN__
     globals.master_volume = 0.5f;
-        globals.music_volume = 1.0f;
-        globals.sfx_volume = 1.0f;
+    globals.music_volume = 1.0f;
+    globals.sfx_volume = 1.0f;
 #else
     if (!load_audio_settings()) {
         globals.master_volume = 0.5f;
@@ -1110,12 +1063,11 @@ void draw_menu_fade_overlay() {
 }
 
 bool save_audio_settings() {
-    FILE *file = fopen("audio.dat", "wb");
+    FILE *file = fopen("audio.tmp.dat", "wb");
     if (!file) {
-        logprintf("Failed to open 'audio.dat' for writing!\n");
+        logprintf("Failed to open 'audio.tmp.dat' for writing!\n");
         return false;
     }
-    defer { fclose(file); };
 
     fwrite(&AUDIO_FILE_MAGIC_NUMBER, sizeof(int), 1, file);
     fwrite(&AUDIO_FILE_VERSION, sizeof(int), 1, file);
@@ -1123,6 +1075,11 @@ bool save_audio_settings() {
     fwrite(&globals.music_volume, sizeof(float), 1, file);
     fwrite(&globals.sfx_volume, sizeof(float), 1, file);
 
+    fflush(file);
+    fclose(file);
+
+    move_file("audio.tmp.dat", "audio.dat");
+    
     return true;
 }
 
@@ -1161,12 +1118,11 @@ bool load_audio_settings() {
 }
 
 bool save_highscores() {
-    FILE *file = fopen("hiscores.dat", "wb");
+    FILE *file = fopen("hiscores.tmp.dat", "wb");
     if (!file) {
-        logprintf("Failed to open 'hiscores.dat' for writing!\n");
+        logprintf("Failed to open 'hiscores.tmp.dat' for writing!\n");
         return false;
     }
-    defer { fclose(file); };
 
     fwrite(&HIGHSCORE_FILE_MAGIC_NUMBER, sizeof(int), 1, file);
     fwrite(&HIGHSCORE_FILE_VERSION, sizeof(int), 1, file);
@@ -1175,6 +1131,11 @@ bool save_highscores() {
         fwrite(&globals.highscores[i], sizeof(int), 1, file);
     }
 
+    fflush(file);    
+    fclose(file);
+
+    move_file("hiscores.tmp.dat", "hiscores.dat");
+    
     return true;
 }
 
