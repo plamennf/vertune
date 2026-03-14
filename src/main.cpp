@@ -147,6 +147,95 @@ void main() {
 
 #endif
 )", "color");
+
+    globals.shader_lighting   = make_shader();
+    load_shader(globals.shader_lighting, R"(
+precision highp float;
+
+OUT_IN vec4 v_color;
+OUT_IN vec2 v_world_position;
+
+#ifdef VERTEX_SHADER
+
+in vec2 a_position;
+in vec4 a_color;
+in vec2 a_uv;
+
+uniform mat4 object_to_proj_matrix;
+
+void main() {
+    gl_Position      = object_to_proj_matrix * vec4(a_position, 0.0, 1.0);
+    v_color          = a_color;
+    v_world_position = a_position;
+}
+
+#endif
+
+#ifdef FRAGMENT_SHADER
+
+out vec4 o_color;
+
+struct Light {
+    vec2 position;
+    vec4 color;
+    float radius;
+    float intensity;
+};
+
+uniform Light u_lights[MAX_LIGHTS];
+uniform vec4 u_occluders[64]; // x, y, w, h
+uniform int u_num_occluders;
+
+float get_shadow(vec2 pixel_pos, vec2 light_pos, float light_dist) {
+    vec2 ray_dir = normalize(light_pos - pixel_pos);
+
+    vec2 safe_dir = vec2(
+        abs(ray_dir.x) < 0.00001 ? 0.00001 : ray_dir.x,
+        abs(ray_dir.y) < 0.00001 ? 0.00001 : ray_dir.y
+    );
+    vec2 inv_dir = 1.0 / safe_dir;
+
+    for (int i = 0; i < u_num_occluders; i++) {
+        vec4 r = u_occluders[i];
+
+        vec2 t1 = (r.xy - pixel_pos) * inv_dir;
+        vec2 t2 = (r.xy + r.zw - pixel_pos) * inv_dir;
+        vec2 t_min = min(t1, t2);
+        vec2 t_max = max(t1, t2);
+
+        float n = max(t_min.x, t_min.y);
+        float f = min(t_max.x, t_max.y);
+
+        if (f > n && n > 0.0 && n < light_dist) return 0.0;
+    }
+
+    return 1.0;
+}
+
+void main() {
+    vec2 pixel_pos = v_world_position;
+    vec3 final_lighting = vec3(0.1, 0.1, 0.2);
+
+    for (int i = 0; i < MAX_LIGHTS; i++) {
+        float d = length(u_lights[i].position - pixel_pos);
+        if (d < u_lights[i].radius) {
+            float s = get_shadow(pixel_pos, u_lights[i].position, d);
+            float a = pow(clamp(1.0 - d / u_lights[i].radius, 0.0, 1.0), 2.0);
+            final_lighting += u_lights[i].color.rgb * a * s * u_lights[i].intensity;
+        }
+    }
+
+    final_lighting *= v_color.rgb;
+
+#ifdef SGLES
+    o_color = vec4(pow(final_lighting.xyz, vec3(1.0 / 2.2)), 1.0);
+#else
+    o_color = vec4(final_lighting, 1.0);
+#endif
+}
+
+#endif
+)", "lighting");
     
     globals.shader_texture = make_shader();
     load_shader(globals.shader_texture, R"(
@@ -472,10 +561,24 @@ static void generate_random_level(World *world, int level_width, int level_heigh
     hero->position = v2(1, ground_y + 1.0f);
     hero->size     = v2(1, 1);
 
+    Light *start_light = make_light(world);
+    start_light->position  = v2(hero->position.x, hero->position.y + 5.0f);
+    start_light->color     = v4(0.8f, 0.9f, 1.0f, 1.0f);
+    start_light->radius    = 12.0f;
+    start_light->intensity = 1.0f;
+    
     for (int i = 0; i < platforms.count - 1; i++) {
         Platform plat = platforms[i];
         int num_coins = 1 + rand() % 2;
 
+        if (i % 3 == 0 && i != 0) {
+            Light *light = make_light(world);
+            light->position  = v2((plat.x_start + plat.x_end) * 0.5f, (float)level_height - 5.0f);
+            light->color     = v4(1.0f, 1.0f, 0.8f, 1.0f);
+            light->radius    = 25.0f;
+            light->intensity = 0.8f;            
+        }
+        
         for (int i = 0; i < num_coins; i++) {
             float coin_x = plat.x_start + 0.5f + rand() % (plat.x_end - plat.x_start + 1);
             float coin_y = plat.y + 2.5f;
@@ -493,7 +596,14 @@ static void generate_random_level(World *world, int level_width, int level_heigh
             Pickup *pickup = make_pickup(world);
             pickup->position = v2(coin_x, coin_y);
             pickup->color    = v4(1, 1, 0, 1);
-            pickup->radius   = 0.5f;
+            pickup->radius   = 0.25f;
+
+            Light *light       = make_light(world);
+            light->position    = v2(coin_x, coin_y);
+            light->color       = v4(1, 1, 0, 1);
+            light->radius      = 0.5f;
+            light->intensity   = 0.6f;
+            light->should_draw = false;
         }
     }
         
@@ -502,6 +612,14 @@ static void generate_random_level(World *world, int level_width, int level_heigh
     door->size     = v2(1, 2);
     door->locked   = true;
 
+    Light *door_light = make_light(world);
+    door_light->position  = v2(door->position.x, door->position.y + door->size.y + 2.0f);
+    door_light->color     = v4(1.0f, 0.2f, 0.2f, 1.0f);
+    door_light->radius    = 8.0f;
+    door_light->intensity = 1.2f;
+
+    door->light_id = door_light->id;
+    
     world->num_pickups_needed_to_unlock_door = (int)world->by_type._Pickup.count;
 }
 

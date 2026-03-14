@@ -89,6 +89,7 @@ struct Global_Variables {
     
     Shader *shader_color = NULL;
     Shader *shader_texture = NULL;
+    Shader *shader_lighting = NULL;
     Shader *shader_text = NULL;
 
     Matrix4 object_to_proj_matrix;

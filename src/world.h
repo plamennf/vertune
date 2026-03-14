@@ -11,6 +11,7 @@ struct Enemy;
 struct Projectile;
 struct Pickup;
 struct Door;
+struct Light;
 
 struct Particle_System;
 
@@ -20,6 +21,7 @@ struct Entities_By_Type {
     Array <Enemy *> _Enemy;
     Array <Projectile *> _Projectile;
     Array <Pickup *> _Pickup;
+    Array <Light *> _Light;
 };
 
 struct Level_Fade {
@@ -66,3 +68,4 @@ Door *make_door(World *world);
 Enemy *make_enemy(World *world);
 Projectile *make_projectile(World *world);
 Pickup *make_pickup(World *world);
+Light *make_light(World *world);

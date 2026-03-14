@@ -21,3 +21,4 @@ void draw_particles(Particle_System *system, World *world);
 void emit_jump_particles(Particle_System *system, Vector2 position);
 void emit_stomp_particles(Particle_System *system, Vector2 position);
 void emit_blood_particles(Particle_System *system, Vector2 position);
+void emit_coin_particles(Particle_System *system, Vector2 position);

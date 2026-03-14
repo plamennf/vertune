@@ -11,6 +11,7 @@
 #include "mt19937-64.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #define WORLD_FILE_VERSION 1
 
@@ -112,6 +113,10 @@ void update_world(World *world, float dt) {
                     world->by_type._Pickup.ordered_remove_by_value((Pickup *)e);
                 } break;
 
+                case ENTITY_TYPE_LIGHT: {
+                    world->by_type._Light.ordered_remove_by_value((Light *)e);
+                } break;
+                    
                 case ENTITY_TYPE_DOOR: {
                     world->by_type._Door = NULL;
                 } break;
@@ -187,20 +192,114 @@ static void draw_restarts(Vector2 position, Vector2 size) {
     }
 }
 
+static int light_compare_func(const void *_a, const void *_b) {
+    Light *a = *(Light **)_a;
+    Light *b = *(Light **)_b;
+
+    if (a->distance_to_player < b->distance_to_player) return -1;
+    if (a->distance_to_player > b->distance_to_player) return +1;
+    return 0;
+}
+
+static void find_closest_lights(World *world, Vector2 position, Light lights[MAX_LIGHTS], int num_lights) {
+    // TODO: Implement temporary/frame storage
+    Light **sorted_lights = (Light **)malloc(sizeof(Light *) * world->by_type._Light.count);
+    defer { free(sorted_lights); };
+    memcpy(sorted_lights, world->by_type._Light.data, world->by_type._Light.count * sizeof(Light *));
+
+    for (int i = 0; i < world->by_type._Light.count; i++) {
+        Light *light = sorted_lights[i];
+        light->distance_to_player = length(position - light->position);
+    }
+    
+    qsort(sorted_lights, world->by_type._Light.count, sizeof(Light *), light_compare_func);
+
+    for (int i = 0; i < MAX_LIGHTS; i++) {
+        if (i < num_lights) {
+            lights[i] = *sorted_lights[i];
+            lights[i].position = world_space_to_screen_space(world, lights[i].position);
+            lights[i].radius   = world_space_to_screen_space(world, v2(0, lights[i].radius)).y;
+        } else {
+            lights[i] = *sorted_lights[0];
+            lights[i].position  = v2(0, 0);
+            lights[i].color     = v4(0, 0, 0, 1);
+            lights[i].radius    = 0.0f;
+            lights[i].intensity = 0.0f;
+        }
+    }
+}
+
+static void get_merged_occluders(Array <Vector4> &merged, World *world, Vector2 hero_pos, float search_radius) {
+    Tilemap *tm = world->tilemap;
+    
+    int x_min = Max(0, (int)(hero_pos.x - search_radius));
+    int x_max = Min(tm->width - 1, (int)(hero_pos.x + search_radius));
+    int y_min = Max(0, (int)(hero_pos.y - search_radius));
+    int y_max = Min(tm->height - 1, (int)(hero_pos.y + search_radius));
+
+    bool *visited = (bool*)alloca((x_max - x_min + 1) * (y_max - y_min + 1) * sizeof(bool));
+    memset(visited, 0, (x_max - x_min + 1) * (y_max - y_min + 1) * sizeof(bool));
+
+    for (int y = y_min; y <= y_max; y++) {
+        for (int x = x_min; x <= x_max; x++) {
+            int local_idx = (y - y_min) * (x_max - x_min + 1) + (x - x_min);
+            
+            if (!visited[local_idx] && is_tile_id_collidable(tm, get_tile_id_at(tm, v2((float)x, (float)y)))) {
+                int start_x = x;
+                int width = 0;
+
+                while (x <= x_max && is_tile_id_collidable(tm, get_tile_id_at(tm, v2((float)x, (float)y))) && !visited[(y - y_min) * (x_max - x_min + 1) + (x - x_min)]) {
+                    visited[(y - y_min) * (x_max - x_min + 1) + (x - x_min)] = true;
+                    width++;
+                    x++;
+                }
+
+                Vector2 screen_space_position = world_space_to_screen_space(world, v2(floorf((float)start_x), floorf((float)y)));
+                Vector2 screen_space_size = world_space_to_screen_space(world, v2((float)width, 1));
+                    
+                Vector4 occluder = v4(screen_space_position.x, screen_space_position.y, screen_space_size.x, screen_space_size.y);
+                
+                //merged.add(v4((float)start_x, (float)y, (float)width, 1.0f));
+                merged.add(occluder);
+                
+                if (merged.count >= 64) return;
+            }
+        }
+    }
+}
+
 void draw_world(World *world, bool skip_hud) {
     MyZoneScoped;
     
     clear_framebuffer(0.2f, 0.5f, 0.8f, 1.0f);
 
-    set_shader(globals.shader_color);
+    bool use_lighting = world->by_type._Light.count > 0;
+    if (use_lighting) {
+        set_shader(globals.shader_lighting);
+    } else {
+        set_shader(globals.shader_color);
+    }
     rendering_2d(globals.render_width, globals.render_height, get_world_to_view_matrix(world->camera, world));
 
     set_blend_mode(BLEND_MODE_ALPHA);
     set_cull_mode(CULL_MODE_OFF);
     set_depth_test_mode(DEPTH_TEST_OFF);
-
+    
     immediate_begin();
 
+    if (use_lighting) {
+        Vector2 hero_position = world->by_type._Hero ? world->by_type._Hero->position : v2(0, 0);
+    
+        Light closest_lights[MAX_LIGHTS];
+        int num_closest_lights = Min(MAX_LIGHTS, world->by_type._Light.count);
+        find_closest_lights(world, hero_position, closest_lights, num_closest_lights);
+
+        Array <Vector4> active_occluders;
+        get_merged_occluders(active_occluders, world, hero_position, 50.0f);
+        
+        refresh_lighting(closest_lights, num_closest_lights, active_occluders);
+    }
+        
     assert(world->tilemap);
     draw_tilemap(world->tilemap, world);
 
@@ -235,6 +334,31 @@ void draw_world(World *world, bool skip_hud) {
     }
 
     draw_particles(world->particle_system, world);
+
+    for (Light *light : world->by_type._Light) {
+        if (!light->should_draw) continue;
+        
+        float world_ceiling_y = (float)world->size.y;
+
+        float wire_half_width = 0.02f; 
+        float bulb_half_width = 0.2f;
+        float bulb_height     = 0.15f;
+
+        Vector2 wire_pos  = v2(light->position.x - wire_half_width, light->position.y);
+        Vector2 wire_size = v2(wire_half_width * 2.0f, world_ceiling_y - light->position.y);
+
+        Vector2 bulb_pos  = v2(light->position.x - bulb_half_width, light->position.y);
+        Vector2 bulb_size = v2(bulb_half_width * 2.0f, bulb_height);
+
+        Vector2 ss_wire_pos  = world_space_to_screen_space(world, wire_pos);
+        Vector2 ss_wire_size = world_space_to_screen_space(world, wire_size);
+    
+        Vector2 ss_bulb_pos  = world_space_to_screen_space(world, bulb_pos);
+        Vector2 ss_bulb_size = world_space_to_screen_space(world, bulb_size);
+
+        immediate_quad(ss_wire_pos, ss_wire_size, v4(0.05f, 0.05f, 0.05f, 1.0f));
+        immediate_quad(ss_bulb_pos, ss_bulb_size, light->color);
+    }
     
     immediate_flush();
     
@@ -328,20 +452,17 @@ static Tilemap *copy_tilemap(Tilemap *tilemap) {
     result->num_colors = tilemap->num_colors;
     result->num_collidable_ids = tilemap->num_collidable_ids;
 
-    // Copy tile data
     int total_tiles = tilemap->width * tilemap->height;
     if (tilemap->tiles && total_tiles > 0) {
         result->tiles = (u8 *)malloc(total_tiles * sizeof(u8));
         memcpy(result->tiles, tilemap->tiles, total_tiles * sizeof(u8));
     }
 
-    // Copy color palette
     if (tilemap->colors && tilemap->num_colors > 0) {
         result->colors = (Vector4 *)malloc(tilemap->num_colors * sizeof(Vector4));
         memcpy(result->colors, tilemap->colors, tilemap->num_colors * sizeof(Vector4));
     }
 
-    // Copy collidable tile IDs
     if (tilemap->collidable_ids && tilemap->num_collidable_ids > 0) {
         result->collidable_ids = (u8 *)malloc(tilemap->num_collidable_ids * sizeof(u8));
         memcpy(result->collidable_ids, tilemap->collidable_ids, tilemap->num_collidable_ids * sizeof(u8));
@@ -414,6 +535,13 @@ World *copy_world(World *world) {
                 copy = p;
                 result->by_type._Pickup.add(p);
                 register_entity(result, p, ENTITY_TYPE_PICKUP);
+            } break;
+
+            case ENTITY_TYPE_LIGHT: {
+                Light *l = new Light(*((Light *)e));
+                copy = l;
+                result->by_type._Light.add(l);
+                register_entity(result, l, ENTITY_TYPE_LIGHT);
             } break;
                 
             default: {
@@ -536,6 +664,15 @@ Pickup *make_pickup(World *world) {
     register_entity(world, pickup, ENTITY_TYPE_PICKUP);
 
     return pickup;
+}
+
+Light *make_light(World *world) {
+    Light *light = new Light();
+
+    world->by_type._Light.add(light);
+    register_entity(world, light, ENTITY_TYPE_LIGHT);
+
+    return light;
 }
 
 void schedule_for_destruction(Entity *entity) {

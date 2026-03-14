@@ -133,9 +133,15 @@ void update_single_hero(Hero *hero, float dt) {
             play_sound(globals.coin_pickup_sfx);
             schedule_for_destruction(pickup);
             hero->coin_flash_timer = COIN_FLASH_TIME;
+            emit_coin_particles(world->particle_system, pickup->position);
             if (hero->num_pickups >= world->num_pickups_needed_to_unlock_door) {
                 if (world->by_type._Door) {
                     world->by_type._Door->locked = false;
+                    Entity *light_e = get_entity_by_id(world, world->by_type._Door->light_id);
+                    if (light_e) {
+                        Light *light = (Light *)light_e;
+                        light->color = v4(0.2f, 1.0f, 0.2f, 1.0f);
+                    }
                 }
             }
         }
@@ -386,6 +392,16 @@ void draw_single_pickup(Pickup *pickup) {
     World *world = pickup->world;
     assert(world);
 
+    Vector4 glow_color = v4(1, 1, 0, 0.15f);
+    for (int i = 1; i <= 3; i++) {
+        float glow_size = pickup->radius + (i * 0.05f);
+
+        Vector2 screen_space_position = world_space_to_screen_space(world, pickup->position);
+        Vector2 screen_space_size = world_space_to_screen_space(world, v2(0, glow_size));
+
+        immediate_circle(screen_space_position, screen_space_size.y, glow_color);
+    }
+    
     Vector2 screen_space_position = world_space_to_screen_space(world, pickup->position);
     Vector2 screen_space_size     = world_space_to_screen_space(world, v2(0, pickup->radius));
 

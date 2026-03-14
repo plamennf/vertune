@@ -1,4 +1,5 @@
 #include "main.h"
+#include "entity.h"
 
 #include "rendering.h"
 
@@ -8,6 +9,8 @@
 #else
 #include <GL/glew.h>
 #endif
+
+#include <stdio.h>
 
 struct Texture {
     int width;
@@ -38,6 +41,14 @@ struct Shader {
     GLint view_to_proj_matrix_loc;
     GLint world_to_view_matrix_loc;
     GLint object_to_world_matrix_loc;
+
+    GLint u_light_positions[MAX_LIGHTS];
+    GLint u_light_colors[MAX_LIGHTS];
+    GLint u_light_radii[MAX_LIGHTS];
+    GLint u_light_intensities[MAX_LIGHTS];
+
+    GLint u_occluders[64];
+    GLint u_num_occluders;
 };
 
 struct Immediate_Vertex {
@@ -441,6 +452,9 @@ bool load_shader(Shader *shader, char *file_data, char *filepath) {
         logprintf("Null file data for '%s'.\n", filepath);
         return false;
     }
+
+    char extra_defines[1024];
+    snprintf(extra_defines, sizeof(extra_defines), "#define MAX_LIGHTS %d\n#line 2 1\n", MAX_LIGHTS);
     
     char *vertex_source[] = {
 #ifdef __EMSCRIPTEN__
@@ -448,6 +462,7 @@ bool load_shader(Shader *shader, char *file_data, char *filepath) {
 #else
         "#version 330 core\n#define VERTEX_SHADER\n#define OUT_IN out\n#line 1 1\n",
 #endif
+        extra_defines,
         file_data
     };
 
@@ -463,13 +478,14 @@ bool load_shader(Shader *shader, char *file_data, char *filepath) {
         logprintf("Failed to compile '%s' vertex shader:\n%s\n", filepath, info_log);
         return false;
     }
-
+    
     char *fragment_source[] = {
 #ifdef __EMSCRIPTEN__   
-        "#version 300 es\n#define FRAGMENT_SHADER\n#define OUT_IN in\n#define SGLES\n#line 1 1\n",
+        "#version 300 es\n#define FRAGMENT_SHADER\n#define OUT_IN in\n#define SGLES\n",
 #else
         "#version 330 core\n#define FRAGMENT_SHADER\n#define OUT_IN in\n#line 1 1\n",
 #endif
+        extra_defines,
         file_data
     };
 
@@ -518,6 +534,29 @@ bool load_shader(Shader *shader, char *file_data, char *filepath) {
     shader->view_to_proj_matrix_loc = glGetUniformLocation(p, "view_to_proj_matrix");
     shader->world_to_view_matrix_loc = glGetUniformLocation(p, "world_to_view_matrix");
     shader->object_to_world_matrix_loc = glGetUniformLocation(p, "object_to_world_matrix");
+
+    for (int i = 0; i < MAX_LIGHTS; i++) {
+        char name[256];
+        snprintf(name, sizeof(name), "u_lights[%d].position", i);
+        shader->u_light_positions[i] = glGetUniformLocation(p, name);
+
+        snprintf(name, sizeof(name), "u_lights[%d].color", i);
+        shader->u_light_colors[i] = glGetUniformLocation(p, name);
+
+        snprintf(name, sizeof(name), "u_lights[%d].radius", i);
+        shader->u_light_radii[i] = glGetUniformLocation(p, name);
+
+        snprintf(name, sizeof(name), "u_lights[%d].intensity", i);
+        shader->u_light_intensities[i] = glGetUniformLocation(p, name);
+    }
+
+    for (int i = 0; i < 64; i++) {
+        char name[256];
+        snprintf(name, sizeof(name), "u_occluders[%d]", i);
+        shader->u_occluders[i] = glGetUniformLocation(p, name);
+    }
+
+    shader->u_num_occluders = glGetUniformLocation(p, "u_num_occluders");
     
     return true;
 }
@@ -554,4 +593,29 @@ void refresh_transform() {
         set_matrix4(current_shader->world_to_view_matrix_loc, globals.world_to_view_matrix);
         set_matrix4(current_shader->object_to_world_matrix_loc, globals.object_to_world_matrix);
     }
+}
+
+void refresh_lighting(Light lights[MAX_LIGHTS], int num_lights, Array <Vector4> const &occluders) {
+    Shader *shader = current_shader;
+    if (!shader) return;
+
+    for (int i = 0; i < MAX_LIGHTS; i++) {
+        if (i < num_lights) {
+            glUniform2f(shader->u_light_positions[i], lights[i].position.x, lights[i].position.y);
+            glUniform4f(shader->u_light_colors[i], lights[i].color.r, lights[i].color.g, lights[i].color.b, lights[i].color.a);
+            glUniform1f(shader->u_light_radii[i], lights[i].radius);
+            glUniform1f(shader->u_light_intensities[i], lights[i].intensity);
+        } else {
+            glUniform2f(shader->u_light_positions[i], 0.0f, 0.0f);
+            glUniform4f(shader->u_light_colors[i], 0.0f, 0.0f, 0.0f, 1.0f);
+            glUniform1f(shader->u_light_radii[i], 0.0f);
+            glUniform1f(shader->u_light_intensities[i], 1.0f);            
+        }
+    }
+    
+    for (int i = 0; i < occluders.count; i++) {
+        glUniform4f(shader->u_occluders[i], occluders[i].x, occluders[i].y, occluders[i].z, occluders[i].w);
+    }
+
+    glUniform1i(shader->u_num_occluders, occluders.count);
 }

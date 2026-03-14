@@ -155,12 +155,30 @@ void draw_tilemap(Tilemap *tilemap, World *world) {
             u8 tile_id = tilemap->tiles[y * tilemap->width + x];
             if (tile_id > 0) {
                 assert(tile_id > 0 && tile_id <= tilemap->num_colors);
-                Vector4 color = tilemap->colors[tile_id - 1];
 
-                Vector2 screen_space_position = world_space_to_screen_space(world, v2(xpos, ypos));
-                Vector2 screen_space_size     = world_space_to_screen_space(world, v2(1, 1));
-                
-                immediate_quad(screen_space_position, screen_space_size, color);
+                {
+                    Vector2 screen_space_position = world_space_to_screen_space(world, v2(xpos, ypos));
+                    Vector2 screen_space_size     = world_space_to_screen_space(world, v2(1, 1));
+                    Vector4 color = tilemap->colors[tile_id - 1];
+                    
+                    immediate_quad(screen_space_position, screen_space_size, color);
+                }
+
+                {
+                    Vector2 screen_space_position = world_space_to_screen_space(world, v2(xpos, ypos + 0.95f));
+                    Vector2 screen_space_size = world_space_to_screen_space(world, v2(1.0f, 0.05f));
+                    Vector4 color = v4(1, 1, 1, 0.5f);
+                    
+                    immediate_quad(screen_space_position, screen_space_size, color);
+                }
+
+                {
+                    Vector2 screen_space_position = world_space_to_screen_space(world, v2(xpos, ypos));
+                    Vector2 screen_space_size = world_space_to_screen_space(world, v2(1.0f, 0.1f));
+                    Vector4 color = v4(0, 0, 0, 0.2f);
+                    
+                    immediate_quad(screen_space_position, screen_space_size, color);
+                }
             }
 
             xpos += 1.0f;

@@ -18,6 +18,7 @@ enum Entity_Type {
     ENTITY_TYPE_PROJECTILE,
     ENTITY_TYPE_PICKUP,
     ENTITY_TYPE_DOOR,
+    ENTITY_TYPE_LIGHT,
 };
 
 struct Entity {
@@ -82,6 +83,14 @@ void draw_single_pickup(Pickup *pickup);
 
 struct Door : public Entity {
     bool locked = true;
+    u64 light_id = 0;
 };
 
 void draw_single_door(Door *door);
+
+struct Light : public Entity {
+    float radius = 50.0f;
+    float intensity = 10.0f;
+    float distance_to_player = 0.0f;
+    bool should_draw = true;
+};

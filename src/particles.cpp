@@ -64,3 +64,19 @@ void emit_blood_particles(Particle_System *system, Vector2 position) {
         system->particles.add(p);
     }
 }
+
+void emit_coin_particles(Particle_System *system, Vector2 position) {
+    for (int i = 0; i < 12; i++) {
+        float angle = random_float() * 2.0f * 3.14159f;
+        float speed = 2.0f + random_float() * 5.0f;
+        
+        Particle p;
+        p.position = position;
+        p.velocity = v2(cosf(angle) * speed, sinf(angle) * speed);
+        p.color = v4(1.0f, 1.0f, 0.0f, 1.0f);
+        p.lifetime = 0.4f + random_float() * 0.2f;
+        p.age = 0.0f;
+        p.size = 0.05f + random_float() * 0.1f;
+        system->particles.add(p);
+    }
+}
