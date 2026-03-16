@@ -617,5 +617,7 @@ void refresh_lighting(Light lights[MAX_LIGHTS], int num_lights, eastl::vector <V
         glUniform4f(shader->u_occluders[i], occluders[i].x, occluders[i].y, occluders[i].z, occluders[i].w);
     }
 
-    glUniform1i(shader->u_num_occluders, (GLint)occluders.size());
+    for (int i = (int)occluders.size(); i < 64; i++) {
+        glUniform4f(shader->u_occluders[i], -200, -200, 0, 0);
+    }
 }

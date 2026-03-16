@@ -184,7 +184,6 @@ struct Light {
 
 uniform Light u_lights[MAX_LIGHTS];
 uniform vec4 u_occluders[64]; // x, y, w, h
-uniform int u_num_occluders;
 
 float get_shadow(vec2 pixel_pos, vec2 light_pos, float light_dist) {
     vec2 ray_dir = normalize(light_pos - pixel_pos);
@@ -195,7 +194,7 @@ float get_shadow(vec2 pixel_pos, vec2 light_pos, float light_dist) {
     );
     vec2 inv_dir = 1.0 / safe_dir;
 
-    for (int i = 0; i < u_num_occluders; i++) {
+    for (int i = 0; i < 64; i++) {
         vec4 r = u_occluders[i];
 
         vec2 t1 = (r.xy - pixel_pos) * inv_dir;
