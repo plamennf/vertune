@@ -6,6 +6,10 @@
 
 #ifdef _WIN32
 #include <Windows.h>
+#include <Lmcons.h>
+
+static char name_of_user_buffer[UNLEN + 1];
+
 #endif
 
 static FILE *log_file = NULL;
@@ -460,6 +464,49 @@ void move_file(char *old_filepath, char *new_filepath) {
     }
 
     MoveFileExW(wide_old_filepath, wide_new_filepath, MOVEFILE_REPLACE_EXISTING);
+}
+
+System_Time get_system_time() {
+    SYSTEMTIME system_time;
+    GetSystemTime(&system_time);
+
+    System_Time result;
+
+    result.year   = system_time.wYear;
+    result.month  = system_time.wMonth;
+    result.day    = system_time.wDay;
+    result.hour   = system_time.wHour;
+    result.minute = system_time.wMinute;
+    result.second = system_time.wSecond;
+
+    return result;
+}
+
+System_Time get_local_time() {
+    SYSTEMTIME system_time;
+    GetLocalTime(&system_time);
+
+    System_Time result;
+
+    result.year   = system_time.wYear;
+    result.month  = system_time.wMonth;
+    result.day    = system_time.wDay;
+    result.hour   = system_time.wHour;
+    result.minute = system_time.wMinute;
+    result.second = system_time.wSecond;
+
+    return result;
+}
+
+char *get_name_of_user() {
+    wchar_t buffer[UNLEN + 1];
+    DWORD size = sizeof(buffer) / sizeof(wchar_t);
+
+    GetUserNameW(buffer, &size);
+
+    WideCharToMultiByte(CP_UTF8, 0, buffer, -1, name_of_user_buffer, sizeof(name_of_user_buffer), NULL, NULL);
+
+    return name_of_user_buffer;
 }
 
 #endif

@@ -52,6 +52,10 @@ class ExitScopeHelp {
 #define Bit(x) (1 << (x))
 #define Square(x) ((x)*(x))
 
+#define Kilobytes(x) ((x)*1024ULL)
+#define Megabytes(x) (Kilobytes(x)*1024ULL)
+#define Gigabytes(x) (Megabytes(x)*1024ULL)
+#define Terabytes(x) (Gigabytes(x)*1024ULL)
 
 // Overload for eastl
 inline void* __cdecl operator new[](size_t size, const char* name, int flags, unsigned debugFlags, const char* file, int line) {
@@ -61,6 +65,15 @@ inline void* __cdecl operator new[](size_t size, const char* name, int flags, un
 inline void* operator new[](size_t size, size_t alignment, size_t alignmentOffset, const char* pName, int flags, unsigned debugFlags, const char* file, int line) {
     return new uint8_t[size];
 }
+
+struct System_Time {
+    int year;
+    int month;
+    int day;
+    int hour;
+    int minute;
+    int second;
+};
 
 u64 round_to_next_power_of_2(u64 v);
 
@@ -100,3 +113,7 @@ float fract(float value);
 float random_float();
 
 s64 get_time_nanoseconds();
+
+System_Time get_system_time();
+System_Time get_local_time();
+char *get_name_of_user();

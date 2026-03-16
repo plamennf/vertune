@@ -17,14 +17,14 @@ struct Memory_Arena {
     void reset();
     
     template <typename T>
-    inline T *allocate_struct() {
-        T *result = (T *)allocate(sizeof(T));
+    inline T *allocate_struct(size_t alignment = 4) {
+        T *result = (T *)allocate_aligned(sizeof(T), alignment);
         return result;
     }
 
     template <typename T>
-    inline T *allocate_array(size_t count) {
-        T *result = (T *)allocate(count * sizeof(T));
+    inline T *allocate_array(size_t count, size_t alignment = 4) {
+        T *result = (T *)allocate_aligned(count * sizeof(T), alignment);
         return result;
     }
 };

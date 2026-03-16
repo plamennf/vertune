@@ -164,7 +164,6 @@ static int light_compare_func(const void *_a, const void *_b) {
 }
 
 static void find_closest_lights(World *world, Vector2 position, Light lights[MAX_LIGHTS], int num_lights) {
-    // TODO: Implement temporary/frame storage
     auto const &all_lights = world->by_type._Light;
 
     int num_lights_to_sort = 0;
@@ -174,8 +173,8 @@ static void find_closest_lights(World *world, Vector2 position, Light lights[MAX
         num_lights_to_sort++;
     }
 
-    Light **sorted_lights = new Light*[num_lights_to_sort];
-    defer { delete [] sorted_lights; };
+    Light **sorted_lights = globals.frame_memory.allocate_array<Light *>(num_lights_to_sort);
+    //defer { delete [] sorted_lights; };
     num_lights_to_sort = 0;
     for (Light *light : all_lights) {
         if (light->scheduled_for_destruction) continue;
@@ -215,8 +214,8 @@ static void get_merged_occluders(eastl::vector <Vector4> &merged, World *world, 
     int y_min = Max(0, (int)(hero_pos.y - search_radius));
     int y_max = Min(tm->height - 1, (int)(hero_pos.y + search_radius));
 
-    bool *visited = new bool[((x_max - x_min + 1) * (y_max - y_min + 1) * sizeof(bool))]; // TODO: Use temporary storage
-    defer { delete [] visited; };
+    bool *visited = globals.frame_memory.allocate_array<bool>(((x_max - x_min + 1) * (y_max - y_min + 1) * sizeof(bool)));
+    //defer { delete [] visited; };
     memset(visited, 0, (x_max - x_min + 1) * (y_max - y_min + 1) * sizeof(bool));
 
     for (int y = y_min; y <= y_max; y++) {

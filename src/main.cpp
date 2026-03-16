@@ -590,10 +590,21 @@ static void generate_random_level(World *world, int level_width, int level_heigh
             if (boost_coin) {
                 coin_y = plat.y + max_jump_height + 3.0f + rand() % 2;
 
-                Enemy *enemy    = make_enemy(world);
-                enemy->position = v2(coin_x, plat.y + 1.5f);
-                enemy->color    = v4(0, 0, 1, 1);
-                enemy->radius   = 0.5f;
+                bool enemy_found = false;
+                for (int i = 0; i < world->by_type._Enemy.size(); i++) {
+                    Enemy *enemy = world->by_type._Enemy[i];
+                    if (length(enemy->position - v2(coin_x, plat.y + 1.5f)) < 0.5f) {
+                        enemy_found = true;
+                        break;
+                    }
+                }
+
+                //if (!enemy_found) {
+                    Enemy *enemy    = make_enemy(world);
+                    enemy->position = v2(coin_x, plat.y + 1.5f);
+                    enemy->color    = v4(0, 0, 1, 1);
+                    enemy->radius   = 0.5f;
+                    //}
             }
 
             Pickup *pickup = make_pickup(world);
@@ -725,7 +736,13 @@ bool restart_current_world() {
     if (globals.num_restarts_for_current_world > MAX_RESTARTS) {
         globals.program_mode = PROGRAM_MODE_END;
         globals.current_fail_msg_index = rand() % ArrayCount(fail_msgs);
-        globals.highscores.push_back(globals.num_worlds_completed);
+
+        Highscore highscore;
+        highscore.time                 = get_local_time();
+        highscore.num_levels_completed = globals.num_worlds_completed;
+        highscore.name                 = get_name_of_user();
+        
+        globals.highscores.push_back(highscore);
         play_sound(globals.level_fail_sfx);
         return true;
     }
@@ -916,6 +933,8 @@ static void init_window_size(int *width, int *height) {
 
 static void main_loop() {
     globals.num_frames_since_startup++;
+
+    globals.frame_memory.reset();
     
     if (globals.should_switch_worlds) {
         bool should_restart_level = false;
@@ -1014,6 +1033,8 @@ int main(int argc, char *argv[]) {
     enable_dpi_awareness();
 #endif
 
+    globals.frame_memory.init(Megabytes(32));
+    
     init_log();
     defer { close_log(); };
 
@@ -1074,7 +1095,7 @@ int main(int argc, char *argv[]) {
     globals.music_volume = 1.0f;
     globals.sfx_volume = 1.0f;
 #else
-    if (!load_audio_settings()) {
+    if (!load_settings()) {
         globals.master_volume = 0.5f;
         globals.music_volume = 1.0f;
         globals.sfx_volume = 1.0f;
@@ -1082,8 +1103,9 @@ int main(int argc, char *argv[]) {
 #endif
     
 #ifdef BUILD_DEBUG
+    load_highscores();
     for (int i = 0; i < 10; i++) {
-        globals.highscores.push_back(100);
+        globals.highscores.push_back({get_local_time(), 100, get_name_of_user()});
     }
 #elif defined(__EMSCRIPTEN__)
 #else
@@ -1117,7 +1139,7 @@ int main(int argc, char *argv[]) {
 #endif
 
 #ifndef __EMSCRIPTEN__
-    save_audio_settings();
+    save_settings();
     save_highscores();
 #endif
     
@@ -1191,15 +1213,15 @@ void draw_menu_fade_overlay() {
     immediate_flush();
 }
 
-bool save_audio_settings() {
-    FILE *file = fopen("audio.tmp.dat", "wb");
+bool save_settings() {
+    FILE *file = fopen("settings.tmp.dat", "wb");
     if (!file) {
-        logprintf("Failed to open 'audio.tmp.dat' for writing!\n");
+        logprintf("Failed to open 'settings.tmp.dat' for writing!\n");
         return false;
     }
 
-    fwrite(&AUDIO_FILE_MAGIC_NUMBER, sizeof(int), 1, file);
-    fwrite(&AUDIO_FILE_VERSION, sizeof(int), 1, file);
+    fwrite(&SETTINGS_FILE_MAGIC_NUMBER, sizeof(int), 1, file);
+    fwrite(&SETTINGS_FILE_VERSION, sizeof(int), 1, file);
     fwrite(&globals.master_volume, sizeof(float), 1, file);
     fwrite(&globals.music_volume, sizeof(float), 1, file);
     fwrite(&globals.sfx_volume, sizeof(float), 1, file);
@@ -1213,30 +1235,36 @@ bool save_audio_settings() {
     fflush(file);
     fclose(file);
 
-    move_file("audio.tmp.dat", "audio.dat");
+    move_file("settings.tmp.dat", "settings.dat");
     
     return true;
 }
 
-bool load_audio_settings() {
-    FILE *file = fopen("audio.dat", "rb");
+bool load_settings() {
+    char *filename = "settings.dat";
+    FILE *file = fopen(filename, "rb");
     if (!file) {
-        logprintf("Failed to open 'audio.dat' for reading!\n");
+        filename = "audio.dat";
+        logprintf("Failed to open 'settings.dat' for reading! Trying 'audio.dat'!\n");
+        file = fopen(filename, "rb");
+        if (!file) {
+            logprintf("Failed to open 'audio.dat' for reading!\n");
+        }
         return false;
     }
     defer { fclose(file); };
 
     int magic_number;
     fread(&magic_number, sizeof(int), 1, file);
-    if (magic_number != AUDIO_FILE_MAGIC_NUMBER) {
-        logprintf("Invalid magic number for 'audio.dat'\n");
+    if (magic_number != SETTINGS_FILE_MAGIC_NUMBER) {
+        logprintf("Invalid magic number for '%s'\n", filename);
         return false;
     }
 
     int version;
     fread(&version, sizeof(int), 1, file);
-    if (version <= 0 || version > AUDIO_FILE_VERSION) {
-        logprintf("Invalid version for 'audio.dat'\n");
+    if (version <= 0 || version > SETTINGS_FILE_VERSION) {
+        logprintf("Invalid version for '%s'\n", filename);
         return false;
     }
 
@@ -1271,13 +1299,35 @@ bool save_highscores() {
 
     fwrite(&HIGHSCORE_FILE_MAGIC_NUMBER, sizeof(int), 1, file);
     fwrite(&HIGHSCORE_FILE_VERSION, sizeof(int), 1, file);
-    int highscores_size = (int)globals.highscores.size();
+
+    int highscores_size = 0;
+    for (int i = 0; i < globals.highscores.size(); i++) {
+        if (globals.highscores[i].num_levels_completed > 0) {
+            highscores_size++;
+        }
+    }
+    
     fwrite(&highscores_size, sizeof(int), 1, file);
     for (int i = 0; i < globals.highscores.size(); i++) {
-        fwrite(&globals.highscores[i], sizeof(int), 1, file);
+        if (globals.highscores[i].num_levels_completed > 0) {
+            Highscore highscore = globals.highscores[i];
+
+            fwrite(&highscore.time.year,   sizeof(int), 1, file);
+            fwrite(&highscore.time.month,  sizeof(int), 1, file);
+            fwrite(&highscore.time.day,    sizeof(int), 1, file);
+            fwrite(&highscore.time.hour,   sizeof(int), 1, file);
+            fwrite(&highscore.time.minute, sizeof(int), 1, file);
+            fwrite(&highscore.time.second, sizeof(int), 1, file);
+            
+            int name_length = (int)string_length(highscore.name);
+            fwrite(&name_length, sizeof(int), 1, file);
+            fwrite(highscore.name, sizeof(char), name_length, file);
+
+            fwrite(&highscore.num_levels_completed, sizeof(int), 1, file);
+        }
     }
 
-    fflush(file);    
+    fflush(file);
     fclose(file);
 
     move_file("hiscores.tmp.dat", "hiscores.dat");
@@ -1315,11 +1365,37 @@ bool load_highscores() {
     }
 
     if (num_highscores > 0) {
-        globals.highscores.resize(num_highscores);
         for (int i = 0; i < num_highscores; i++) {
+            System_Time time = { 1970, 1, 1, 0, 0, 0 };
+            char *name = "Unknown";
+            
+            if (version >= 2) {
+                fread(&time.year,   sizeof(int), 1, file);
+                fread(&time.month,  sizeof(int), 1, file);
+                fread(&time.day,    sizeof(int), 1, file);
+                fread(&time.hour,   sizeof(int), 1, file);
+                fread(&time.minute, sizeof(int), 1, file);
+                fread(&time.second, sizeof(int), 1, file);
+
+                int name_length = 0;
+                fread(&name_length, sizeof(int), 1, file);
+
+                if (name_length > 0) {
+                    name = new char[name_length + 1];
+                    fread(name, sizeof(char), name_length, file);
+                    name[name_length] = 0;
+                } else {
+                    char buf[32];
+                    fread(buf, sizeof(char), name_length, file);
+                }
+            }
+            
             int highscore;
-            fread(&highscore, sizeof(int), 1, file);
-            globals.highscores[i] = highscore;
+            fread(&highscore,       sizeof(int), 1, file);
+
+            if (highscore > 0) {
+                globals.highscores.push_back({ time, highscore, name });
+            }
         }
     }
 

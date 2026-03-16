@@ -54,10 +54,16 @@ static bool menu_can_accept_input() {
     return !globals.menu_fade.active || globals.menu_fade.fading_in == false;
 }
 
-void toggle_menu() {
+void toggle_menu(bool exit_game) {
     if (globals.program_mode == PROGRAM_MODE_MAIN_MENU) {
         globals.program_mode = PROGRAM_MODE_GAME;
         current_menu_page = MENU_PAGE_MAIN;
+
+        if (exit_game) {
+            if (!globals.menu_fade.active) {
+                start_menu_fade(globals.current_world);
+            }
+        }
     } else if (globals.program_mode == PROGRAM_MODE_GAME) {
         globals.program_mode = PROGRAM_MODE_MAIN_MENU;
     }
@@ -138,9 +144,20 @@ static void handle_enter() {
     } else if (choice == index_quit) {
         if (asking_for_quit_confirmation) {
             if (globals.current_world != globals.menu_world) {
-                globals.highscores.push_back(globals.num_worlds_completed);
+                Highscore highscore;
+
+                highscore.time                 = get_local_time();
+                highscore.num_levels_completed = globals.num_worlds_completed;
+                highscore.name                 = get_name_of_user();
+                
+                if (globals.num_worlds_completed > 0) {
+                    globals.highscores.push_back(highscore);
+                }
+
+                toggle_menu(true);
+            } else {
+                globals.should_quit_game = true;
             }
-            globals.should_quit_game = true;
         }
         else asking_for_quit_confirmation = true;
     }
@@ -258,8 +275,13 @@ static void draw_menu_choices() {
     // Menu item: Quit
     //
 
-    text = "Quit";
-    if (asking_for_quit_confirmation) text = "Quit? Are you sure?";
+    if (globals.current_world == globals.menu_world) {
+        text = "Quit";
+        if (asking_for_quit_confirmation) text = "Quit? Are you sure?";
+    } else {
+        text = "Exit to main menu";
+        if (asking_for_quit_confirmation) text = "Exit to main menu? Are you sure?";
+    }
     index_quit = draw_item(text, font, center_x, cursor_y, start_color);
 
 #endif
@@ -490,14 +512,14 @@ static float get_max_draw_y_offset_for_highscores_due_to_scrolling() {
     auto body_font    = get_font_at_size("Lora-Bold", (int)(BIG_FONT_SIZE * 0.9f));
     Dynamic_Font *font = body_font;
 
-    int cursor_y = (int)(globals.render_height * 0.8);
+    int cursor_y = (int)(globals.render_height * 0.7);
     int stride = (int)(1.4f * font->character_height);
 
-    for (int hiscore : globals.highscores) {
+    for (Highscore hiscore : globals.highscores) {
         cursor_y -= stride;
     }
 
-    return (float)(-cursor_y);
+    return (float)cursor_y;
 }
 
 static void draw_highscores() {
@@ -505,33 +527,79 @@ static void draw_highscores() {
     
     int BIG_FONT_SIZE = (int)(globals.render_height * 0.0725f);
     auto title_font   = get_font_at_size("Lora-BoldItalic", (int)(BIG_FONT_SIZE * 1.6f));
-    auto body_font    = get_font_at_size("Lora-Bold", (int)(BIG_FONT_SIZE * 0.9f));
+    auto body_font    = get_font_at_size("Lora-Bold", (int)(BIG_FONT_SIZE * 0.7f));
 
     set_shader(globals.shader_text);
-    rendering_2d(globals.render_width, globals.render_height, draw_y_offset_for_highscores_due_to_scrolling);
+    rendering_2d(globals.render_width, globals.render_height);
 
     set_blend_mode(BLEND_MODE_ALPHA);
     set_cull_mode(CULL_MODE_OFF);
     set_depth_test_mode(DEPTH_TEST_OFF);
 
-    Dynamic_Font *font = body_font;
+    Dynamic_Font *font = title_font;
     char text[256];
     snprintf(text, sizeof(text), "%s", "Highscores");
     int x = (globals.render_width - font->get_string_width_in_pixels(text)) / 2;
     int y = globals.render_height - (int)(font->character_height * 1.5f);
     draw_text(font, text, x, y, v4(1, 1, 1, 1));
 
-    int cursor_y = (int)(globals.render_height * 0.8);
+rendering_2d(globals.render_width, globals.render_height, draw_y_offset_for_highscores_due_to_scrolling);
+    
+    font = body_font;
+    
+    int cursor_y = (int)(globals.render_height * 0.7f);
     int stride = (int)(1.4f * font->character_height);
 
-    for (int hiscore : globals.highscores) {
-        snprintf(text, sizeof(text), "%d", hiscore);
+    float total_content_height = (float)(globals.highscores.size() * stride);
+    //float visible_window_height = globals.render_height * (0.7f - 0.1f);
+    float visible_window_height = globals.render_height * 0.7f;
+    bool can_scroll = total_content_height > visible_window_height;
+    
+    int cutoff_top_y = cursor_y, cutoff_bottom_y = 0;
+    if (can_scroll) {
+        cutoff_bottom_y = (int)(globals.render_height * 0.1f);
+    }
+    
+    for (int i = 0; i < globals.highscores.size(); i++) {
+        Highscore hiscore = globals.highscores[i];
+        
+        float actual_y_on_screen = (float)cursor_y + draw_y_offset_for_highscores_due_to_scrolling;
+        if (actual_y_on_screen > cutoff_top_y ||
+            actual_y_on_screen < cutoff_bottom_y) {
+            cursor_y -= stride;
+            continue;
+        }
+        
+        snprintf(text, sizeof(text), "%d. %04d-%02d-%02d %02d:%02d - %s - %d levels completed", i + 1, hiscore.time.year, hiscore.time.month, hiscore.time.day, hiscore.time.hour, hiscore.time.minute, hiscore.name, hiscore.num_levels_completed);
         x = (globals.render_width - font->get_string_width_in_pixels(text)) / 2;
         draw_text(font, text, x, cursor_y, v4(1, 1, 1, 1));
         cursor_y -= stride;
     }
 
     bottom_y_after_drawing_highscores = cursor_y;
+
+    if (can_scroll) {
+        rendering_2d(globals.render_width, globals.render_height);
+
+        float alpha = 0.5f + 0.5f * sinf(SDL_GetTicks() * 0.01f);
+
+        Vector4 color = v4(1.0f, 0.84f, 0.0f, alpha);
+        
+        if (draw_y_offset_for_highscores_due_to_scrolling > 5.0f) {
+            char *up_arrow = "^";
+            int x = (globals.render_width - font->get_string_width_in_pixels(up_arrow)) / 2;
+            int y = (int)(globals.render_height * 0.75f);
+            draw_text(body_font, up_arrow, x, y, color);
+        }
+
+        float max_scroll = total_content_height - visible_window_height;
+        if (draw_y_offset_for_highscores_due_to_scrolling < max_scroll - 5.0f) {
+            char *down_arrow = "^";
+            int x = (globals.render_width - body_font->get_string_width_in_pixels(down_arrow)) / 2;
+            int y = (int)(globals.render_height * 0.05f);
+            draw_text_y_flipped(body_font, down_arrow, x, y, color);
+        }
+    }
 }
 
 void draw_main_menu() {  
@@ -628,6 +696,11 @@ void draw_main_menu() {
 
         if (bottom_y_after_drawing_highscores < 0) {
             float bottom = -(float)bottom_y_after_drawing_highscores;
+            if (draw_y_offset_for_highscores_due_to_scrolling > bottom) {
+                draw_y_offset_for_highscores_due_to_scrolling = bottom;
+            }
+        } else {
+            float bottom = (float)bottom_y_after_drawing_highscores;
             if (draw_y_offset_for_highscores_due_to_scrolling > bottom) {
                 draw_y_offset_for_highscores_due_to_scrolling = bottom;
             }

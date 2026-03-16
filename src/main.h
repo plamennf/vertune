@@ -18,6 +18,7 @@
 #include <eastl/unordered_map.h>
 #include <eastl/string.h>
 #include "packager/packager.h"
+#include "memory_arena.h"
 
 #include <SDL.h>
 
@@ -38,11 +39,11 @@ const int MAX_RESTARTS = 3;
 const int MAX_FPS_CAP = 120;
 const int MAX_SLOW_FRAMES = 120;
 
-const int AUDIO_FILE_MAGIC_NUMBER = 0x504C4159;
-const int AUDIO_FILE_VERSION = 2;
+const int SETTINGS_FILE_MAGIC_NUMBER = 0x504C4159;
+const int SETTINGS_FILE_VERSION = 2;
 
 const int HIGHSCORE_FILE_MAGIC_NUMBER = 0x48534601;
-const int HIGHSCORE_FILE_VERSION = 1;
+const int HIGHSCORE_FILE_VERSION = 2;
 
 struct Fade_Transition {
     bool active = false;
@@ -75,6 +76,12 @@ struct Time_Info {
     int fps_cap = MAX_FPS_CAP;
     int slow_frame_count = 0;
     int fast_frame_count = 0;
+};
+
+struct Highscore {
+    System_Time time;
+    int num_levels_completed;
+    char *name;
 };
 
 struct Global_Variables {
@@ -144,11 +151,13 @@ struct Global_Variables {
     float sfx_volume = 1.0f;
     float music_volume = 1.0f;
 
-    eastl::vector <int> highscores;
+    eastl::vector <Highscore> highscores;
     int current_level_width = 20;
 
     bool enable_lighting = true;
     bool hard_mode_enabled = false;
+
+    Memory_Arena frame_memory;
     
 #ifdef USE_PACKAGE
     Package package;
@@ -164,7 +173,7 @@ bool was_key_just_released(int key_code);
 double nanoseconds_to_seconds(u64 nanoseconds);
 u64 seconds_to_nanoseconds(double seconds);
 
-void toggle_menu();
+void toggle_menu(bool exit_game = false);
 bool switch_to_random_world(int total_width);
 bool restart_current_world();
 
@@ -172,8 +181,8 @@ void start_menu_fade(World *world);
 void update_menu_fade(float dt);
 void draw_menu_fade_overlay();
 
-bool save_audio_settings();
-bool load_audio_settings();
+bool save_settings();
+bool load_settings();
 
 bool save_highscores();
 bool load_highscores();

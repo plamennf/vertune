@@ -89,3 +89,4 @@ void rendering_2d(int width, int height, float y_offset);
 
 struct Dynamic_Font;
 void draw_text(Dynamic_Font *font, char *text, int x, int y, Vector4 color);
+void draw_text_y_flipped(Dynamic_Font *font, char *text, int x, int y, Vector4 color);
