@@ -1,7 +1,7 @@
 #include "../general.h"
 #include "../geometry.h"
-#include "../array.h"
-#include "../hash_table.h"
+#include <eastl/vector.h>
+#include <eastl/unordered_map.h>
 #include "packager.h"
 
 #include <stdio.h>
@@ -78,13 +78,13 @@ bool create_package() {
         "data/sounds/menu-select.wav",
     };
 
-    Array <Span> loaded_files;
+    eastl::vector<Span> loaded_files;
     for (int i = 0; i < ArrayCount(files_to_include); i++) {
         Span span = my_read_entire_file(files_to_include[i]);
         if (span.size <= 0 || span.data == NULL) {
             return false;
         }
-        loaded_files.add(span);
+        loaded_files.push_back(span);
     }
 
     FILE *file = fopen("assets.pak", "wb");

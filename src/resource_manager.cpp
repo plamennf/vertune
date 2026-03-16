@@ -17,13 +17,15 @@ struct Resource_Info {
     T *data;
 };
 
-static String_Hash_Table <Resource_Info <Texture>> loaded_textures;
-static String_Hash_Table <Resource_Info <Sound>> loaded_sounds;
+static eastl::unordered_map <eastl::string, Resource_Info <Texture>> loaded_textures;
+static eastl::unordered_map <eastl::string, Resource_Info <Sound>> loaded_sounds;
 
 Texture *find_or_load_texture(char *name) {
-    auto _info = loaded_textures.find(name);
-    if (_info) return (*_info).data;
-
+    auto it = loaded_textures.find(name);
+    if (it != loaded_textures.end()) {
+        return it->second.data;
+    }
+    
 #ifdef USE_PACKAGE
     Package_Asset_Entry *entry = find_asset_by_name(&globals.package, name);
     if (!entry || entry->type != PACKAGE_ASSET_TEXTURE) {
@@ -52,13 +54,15 @@ Texture *find_or_load_texture(char *name) {
     info.name      = copy_string(name);
     info.data      = texture;
 
-    loaded_textures.add(name, info);
+    loaded_textures.insert({name, info});
     return texture;
 }
 
 Sound *find_or_load_sound(char *name, bool is_looping) {
-    auto _info = loaded_sounds.find(name);
-    if (_info) return (*_info).data;
+    auto it = loaded_sounds.find(name);
+    if (it != loaded_sounds.end()) {
+        return it->second.data;
+    }
 
 #ifdef USE_PACKAGE
     Package_Asset_Entry *entry = find_asset_by_name(&globals.package, name);
@@ -90,11 +94,11 @@ Sound *find_or_load_sound(char *name, bool is_looping) {
     info.name      = copy_string(name);
     info.data      = sound;
 
-    loaded_sounds.add(name, info);
+    loaded_sounds.insert({name, info});
     return sound;
 }
 
 void resource_manager_reset() {
-    loaded_sounds.deallocate();
-    loaded_textures.deallocate();
+    loaded_sounds.clear();
+    loaded_textures.clear();
 }

@@ -17,7 +17,7 @@ rc.exe /fo resources.res ..\resource.rc
 set CompilerFlags= /Oi /fp:fast /fp:except- /Zi /FC /nologo /W3 /I ..\external\include /std:c++20 /Zc:strictStrings- /EHsc- /I ..\tracy
 set Defines= /D_CRT_SECURE_NO_WARNINGS /DRENDER_OPENGL /DOS_WINDOWS /DCOMPILER_MSVC /DUNICODE /D_UNICODE
 set LinkerFlags= /opt:ref /incremental:no /LIBPATH:"..\external\lib"
-set Libs= SDL2.lib SDL2main.lib glew32.lib opengl32.lib freetype.lib shell32.lib
+set Libs= SDL2.lib SDL2main.lib glew32.lib opengl32.lib freetype.lib shell32.lib EASTL.lib
 
 if %BuildDebug%==1 set CompilerFlags= /Od /Ob0 /MTd /DTRACY_ENABLED %CompilerFlags%
 if %BuildDebug%==0 set CompilerFlags= /O2 /Ob2 /MT %CompilerFlags%
@@ -29,7 +29,7 @@ if %BuildDebug%==1 set LinkerFlags= /LIBPATH:"..\external\lib\Debug" /subsystem:
 if %BuildDebug%==0 set LinkerFlags= /LIBPATH:"..\external\lib\Release" /subsystem:windows %LinkerFlags%
 
 cl %CompilerFlags% %Defines%  /Fe:"vertune" ..\src\*.cpp ..\src\packager\packager.cpp ..\tracy\TracyClient.cpp /link %LinkerFlags% %Libs% resources.res
-cl %CompilerFlags% %Defines% /DSTB_IMAGE_IMPLEMENTATION /DPACKAGER_STANDALONE  /Fe:"packager" ..\src\general.cpp ..\src\packager\packager.cpp /link /opt:ref /incremental:no /LIBPATH:"..\external\lib" /subsystem:console SDL2.lib SDL2main.lib shell32.lib
+cl %CompilerFlags% %Defines% /DSTB_IMAGE_IMPLEMENTATION /DPACKAGER_STANDALONE  /Fe:"packager" ..\src\general.cpp ..\src\packager\packager.cpp /link %LinkerFlags% /subsystem:console SDL2.lib SDL2main.lib shell32.lib EASTL.lib
 
 xcopy /y /d ..\external\lib\*.dll
 if %BuildDebug%==1 xcopy /y /d ..\external\lib\Debug\*.dll

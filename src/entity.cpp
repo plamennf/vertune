@@ -28,6 +28,10 @@ void update_single_hero(Hero *hero, float dt) {
 
     hero->velocity.y += GRAVITY * dt;
 
+    if (!hero->is_on_ground && (is_key_down(SDL_SCANCODE_S) || is_key_down(SDL_SCANCODE_DOWN))) {
+        hero->velocity.y += GRAVITY * 2.0f * dt; 
+    }
+
     hero->velocity.y = Max(hero->velocity.y, MAX_FALL_SPEED);
 
     Vector2 new_position = hero->position + hero->velocity * dt;
@@ -116,15 +120,6 @@ void update_single_hero(Hero *hero, float dt) {
     }
 
     Rectangle2 hero_rect = { hero->position.x, hero->position.y, hero->size.x, hero->size.y };
-    for (Projectile *projectile : world->by_type._Projectile) {
-        if (projectile->scheduled_for_destruction) continue;
-
-        if (are_rect_and_circle_colliding(hero_rect, projectile->position, projectile->radius)) {
-            damage_hero(hero, PROJECTILE_DAMAGE);
-            schedule_for_destruction(projectile);
-        }
-    }
-
     for (Pickup *pickup : world->by_type._Pickup) {
         if (pickup->scheduled_for_destruction) continue;
 
@@ -132,12 +127,19 @@ void update_single_hero(Hero *hero, float dt) {
             hero->num_pickups++;
             play_sound(globals.coin_pickup_sfx);
             schedule_for_destruction(pickup);
+
+            Entity *light_e = get_entity_by_id(world, pickup->light_id);
+            if (light_e) {
+                schedule_for_destruction(light_e);
+            }
+            
             hero->coin_flash_timer = COIN_FLASH_TIME;
             emit_coin_particles(world->particle_system, pickup->position);
             if (hero->num_pickups >= world->num_pickups_needed_to_unlock_door) {
                 if (world->by_type._Door) {
                     world->by_type._Door->locked = false;
                     Entity *light_e = get_entity_by_id(world, world->by_type._Door->light_id);
+                    assert(light_e);
                     if (light_e) {
                         Light *light = (Light *)light_e;
                         light->color = v4(0.2f, 1.0f, 0.2f, 1.0f);
@@ -347,11 +349,21 @@ void update_single_projectile(Projectile *projectile, float dt) {
     Vector2 new_position = projectile->position + move_dir * projectile->speed * dt;
     new_position.x -= 0.5f;
     new_position.y -= 0.5f;
-
+    
     bool has_collided = false;
+
+    Hero *hero = world->by_type._Hero;
+    if (hero) {
+        Rectangle2 hero_rect = { hero->position.x, hero->position.y, hero->size.x, hero->size.y };
+        if (are_rect_and_circle_colliding(hero_rect, projectile->position, projectile->radius)) {
+            damage_hero(hero, PROJECTILE_DAMAGE);
+            has_collided = true;
+        }
+    }
+    
     if (!projectile->is_facing_right) {
         u8 tile1_id = get_tile_id_at(tilemap, v2(new_position.x, projectile->position.y));
-        u8 tile2_id = get_tile_id_at(tilemap, v2(new_position.x, projectile->position.y + projectile->size.y * 0.9f));
+        u8 tile2_id = get_tile_id_at(tilemap, v2(new_position.x, projectile->position.y + projectile->radius * 2.0f * 0.9f));
         if (is_tile_id_collidable(tilemap, tile1_id) || is_tile_id_collidable(tilemap, tile2_id)) {
             has_collided = true;
         }
@@ -360,13 +372,23 @@ void update_single_projectile(Projectile *projectile, float dt) {
             has_collided = true;
         }
     } else {
-        u8 tile1_id = get_tile_id_at(tilemap, v2(new_position.x + projectile->size.x, projectile->position.y));
-        u8 tile2_id = get_tile_id_at(tilemap, v2(new_position.x + projectile->size.x, projectile->position.y + projectile->size.y * 0.9f));
+        u8 tile1_id = get_tile_id_at(tilemap, v2(new_position.x + projectile->radius * 2, projectile->position.y));
+        u8 tile2_id = get_tile_id_at(tilemap, v2(new_position.x + projectile->radius * 2, projectile->position.y + projectile->radius * 0.9f));
         if (is_tile_id_collidable(tilemap, tile1_id) || is_tile_id_collidable(tilemap, tile2_id)) {
             has_collided = true;
         }
 
         if (new_position.x > world->size.x - projectile->radius * 2.0f) {
+            has_collided = true;
+        }
+    }
+
+    if (!globals.hard_mode_enabled) {
+        u8 tile_id = get_tile_id_at(tilemap, v2(new_position.x, new_position.y - 1.0f));
+        if (projectile->is_facing_right) {
+            tile_id = get_tile_id_at(tilemap, v2(new_position.x + projectile->radius * 2.0f + 0.5f, new_position.y - 1.0f));
+        }
+        if (!is_tile_id_collidable(tilemap, tile_id)) {
             has_collided = true;
         }
     }

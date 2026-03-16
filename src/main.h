@@ -14,11 +14,19 @@
 
 #include "general.h"
 #include "geometry.h"
-#include "array.h"
-#include "hash_table.h"
+#include <eastl/vector.h>
+#include <eastl/unordered_map.h>
+#include <eastl/string.h>
 #include "packager/packager.h"
 
 #include <SDL.h>
+
+template <typename T>
+inline T *copy_to_array(eastl::vector <T> const &v) {
+    T *result = new T[v.size()];
+    memcpy(result, v.data(), v.size() * sizeof(T));
+    return result;
+}
 
 struct Shader;
 struct Framebuffer;
@@ -31,7 +39,7 @@ const int MAX_FPS_CAP = 120;
 const int MAX_SLOW_FRAMES = 120;
 
 const int AUDIO_FILE_MAGIC_NUMBER = 0x504C4159;
-const int AUDIO_FILE_VERSION = 1;
+const int AUDIO_FILE_VERSION = 2;
 
 const int HIGHSCORE_FILE_MAGIC_NUMBER = 0x48534601;
 const int HIGHSCORE_FILE_VERSION = 1;
@@ -70,8 +78,6 @@ struct Time_Info {
 };
 
 struct Global_Variables {
-    //Array <Event> events_this_frame;
-    //Array <Window_Resize_Record> window_resizes;
     bool should_quit_game = false;
     bool should_vsync = true;
     
@@ -138,10 +144,11 @@ struct Global_Variables {
     float sfx_volume = 1.0f;
     float music_volume = 1.0f;
 
-    Array <int> highscores;
+    eastl::vector <int> highscores;
     int current_level_width = 20;
 
     bool enable_lighting = true;
+    bool hard_mode_enabled = false;
     
 #ifdef USE_PACKAGE
     Package package;

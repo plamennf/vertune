@@ -18,10 +18,10 @@ struct Particle_System;
 struct Entities_By_Type {
     Hero *_Hero = NULL;
     Door *_Door = NULL;
-    Array <Enemy *> _Enemy;
-    Array <Projectile *> _Projectile;
-    Array <Pickup *> _Pickup;
-    Array <Light *> _Light;
+    eastl::vector <Enemy *> _Enemy;
+    eastl::vector <Projectile *> _Projectile;
+    eastl::vector <Pickup *> _Pickup;
+    eastl::vector <Light *> _Light;
 };
 
 struct Level_Fade {
@@ -33,10 +33,10 @@ struct Level_Fade {
 
 struct World {
     Entities_By_Type by_type;
-    Hash_Table <u64, Entity *> entity_lookup;
-    Array <Entity *> all_entities;
+    eastl::unordered_map <u64, Entity *> entity_lookup;
+    eastl::vector <Entity *> all_entities;
 
-    Array <Entity *> entities_to_be_destroyed;
+    eastl::vector <Entity *> entities_to_be_destroyed;
     
     int num_pickups_needed_to_unlock_door = 0;
     Level_Fade level_fade;
@@ -54,6 +54,7 @@ void update_world(World *world, float dt);
 void draw_world(World *world, bool skip_hud = false);
 void destroy_world(World *world);
 World *copy_world(World *world);
+void do_entity_destruction(World *world);
 
 bool load_world_from_file(World *world, char *filepath);
 

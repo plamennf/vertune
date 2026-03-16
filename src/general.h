@@ -9,6 +9,8 @@
 #include <intrin.h>
 #endif
 
+#include <new>
+
 typedef uint64_t u64;
 typedef uint32_t u32;
 typedef uint16_t u16;
@@ -50,6 +52,16 @@ class ExitScopeHelp {
 #define Bit(x) (1 << (x))
 #define Square(x) ((x)*(x))
 
+
+// Overload for eastl
+inline void* __cdecl operator new[](size_t size, const char* name, int flags, unsigned debugFlags, const char* file, int line) {
+	return new uint8_t[size];
+}
+
+inline void* operator new[](size_t size, size_t alignment, size_t alignmentOffset, const char* pName, int flags, unsigned debugFlags, const char* file, int line) {
+    return new uint8_t[size];
+}
+
 u64 round_to_next_power_of_2(u64 v);
 
 s64 string_length(char *s);
@@ -69,9 +81,6 @@ char *find_character_from_left(char *s, char c);
 
 bool is_end_of_line(char c);
 bool is_space(char c);
-
-u64 get_hash(u64 x);
-u64 get_hash(char *str);
 
 void clamp(float *value, float min, float max);
 void clamp(int *value, int min, int max);

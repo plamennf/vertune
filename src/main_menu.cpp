@@ -93,8 +93,8 @@ static void advance_menu_choice(int delta) {
             current_menu_choice += 3;
         }
 
-        if (current_menu_choice >= 4) {
-            current_menu_choice -= 4;
+        if (current_menu_choice >= 5) {
+            current_menu_choice -= 5;
         }
 
         play_sound(globals.menu_change_option);
@@ -138,7 +138,7 @@ static void handle_enter() {
     } else if (choice == index_quit) {
         if (asking_for_quit_confirmation) {
             if (globals.current_world != globals.menu_world) {
-                globals.highscores.add(globals.num_worlds_completed);
+                globals.highscores.push_back(globals.num_worlds_completed);
             }
             globals.should_quit_game = true;
         }
@@ -326,6 +326,7 @@ static void draw_controls() {
         { "Move Left", "A, Left Arrow" },
         { "Move Right", "D, Right Arrow" },
         { "Jump", "W, Up Arrow, Space" },
+        { "Fast Fall", "S, Down Arrow" },
         { "Toggle FPS hud", "F" },
         { "Toggle fullscreen", "F11" },
 #ifdef __EMSCRIPTEN__
@@ -463,6 +464,25 @@ static void draw_settings() {
         
         cursor_y -= stride;
     }
+
+    //
+    // Draw enable hard mode
+    //
+    {
+        set_shader(globals.shader_text);
+
+        char *text = "Enable hard mode:";
+        x = (int)(0.005f * globals.render_width);
+        draw_text(font, text, x, cursor_y, v4(1, 1, 1, 1));
+
+        text = globals.hard_mode_enabled ? "Yes" : "No";
+
+        x = (int)(globals.render_width * 0.45f);
+        
+        draw_text(font, text, x, cursor_y, (current_menu_choice == 4) ? v4(1, 0.8f, 0.2f, 1) : v4(1, 1, 1, 1));
+        
+        cursor_y -= stride;
+    }
 }
 
 static float get_max_draw_y_offset_for_highscores_due_to_scrolling() {
@@ -570,6 +590,8 @@ void draw_main_menu() {
             if (is_key_pressed(SDL_SCANCODE_RETURN)) {
                 if (current_menu_choice == 3) {
                     globals.enable_lighting = !globals.enable_lighting;
+                } else if (current_menu_choice == 4) {
+                    globals.hard_mode_enabled = !globals.hard_mode_enabled;
                 }
             }
             
@@ -591,7 +613,7 @@ void draw_main_menu() {
         } break;
     }
 
-    if (current_menu_page == MENU_PAGE_HIGHSCORES && globals.highscores.count > 0) {
+    if (current_menu_page == MENU_PAGE_HIGHSCORES && globals.highscores.size() > 0) {
         float delta = 20.0f;
         
         if (is_key_down(SDL_SCANCODE_UP)) {

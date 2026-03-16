@@ -595,7 +595,7 @@ void refresh_transform() {
     }
 }
 
-void refresh_lighting(Light lights[MAX_LIGHTS], int num_lights, Array <Vector4> const &occluders) {
+void refresh_lighting(Light lights[MAX_LIGHTS], int num_lights, eastl::vector <Vector4> const &occluders) {
     Shader *shader = current_shader;
     if (!shader) return;
 
@@ -613,9 +613,9 @@ void refresh_lighting(Light lights[MAX_LIGHTS], int num_lights, Array <Vector4> 
         }
     }
     
-    for (int i = 0; i < occluders.count; i++) {
+    for (int i = 0; i < occluders.size(); i++) {
         glUniform4f(shader->u_occluders[i], occluders[i].x, occluders[i].y, occluders[i].z, occluders[i].w);
     }
 
-    glUniform1i(shader->u_num_occluders, occluders.count);
+    glUniform1i(shader->u_num_occluders, (GLint)occluders.size());
 }

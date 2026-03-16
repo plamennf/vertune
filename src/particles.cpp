@@ -4,12 +4,13 @@
 #include "world.h"
 
 void update_particles(Particle_System *system, float dt) {
-    for (int i = 0; i < system->particles.count;) {
+    for (int i = 0; i < system->particles.size();) {
         Particle *particle = &system->particles[i];
         particle->age += dt;
         particle->position += particle->velocity * dt;
         if (particle->age >= particle->lifetime) {
-            system->particles.unordered_remove_by_index(i);
+            system->particles[i] = system->particles.back();
+            system->particles.pop_back();
             continue;
         }
 
@@ -35,7 +36,7 @@ void emit_jump_particles(Particle_System *system, Vector2 position) {
         p.lifetime = 0.5f;
         p.age = 0.0f;
         p.size = 0.1f;
-        system->particles.add(p);
+        system->particles.push_back(p);
     }
 }
 
@@ -48,7 +49,7 @@ void emit_stomp_particles(Particle_System *system, Vector2 position) {
         p.lifetime = 0.4f;
         p.age = 0.0f;
         p.size = 0.12f;
-        system->particles.add(p);
+        system->particles.push_back(p);
     }
 }
 
@@ -61,7 +62,7 @@ void emit_blood_particles(Particle_System *system, Vector2 position) {
         p.lifetime = 0.7f;
         p.age = 0.0f;
         p.size = 0.08f;
-        system->particles.add(p);
+        system->particles.push_back(p);
     }
 }
 
@@ -77,6 +78,6 @@ void emit_coin_particles(Particle_System *system, Vector2 position) {
         p.lifetime = 0.4f + random_float() * 0.2f;
         p.age = 0.0f;
         p.size = 0.05f + random_float() * 0.1f;
-        system->particles.add(p);
+        system->particles.push_back(p);
     }
 }

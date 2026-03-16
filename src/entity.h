@@ -77,6 +77,7 @@ void draw_single_projectile(Projectile *projectile);
 
 struct Pickup : public Entity {
     float radius = 0.5f;
+    u64 light_id = 0;
 };
 
 void draw_single_pickup(Pickup *pickup);

@@ -13,9 +13,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+const float TUTORIAL_START_X = 0.0f;
+const float TUTORIAL_END_X = 5.0f;
+
 #define WORLD_FILE_VERSION 1
 
-static void register_entity(World *world, Entity *e, Entity_Type type);
+static void register_entity(World *world, Entity *e, Entity_Type type, u64 id = 0);
 
 void init_world(World *world, Vector2i size) {
     unsigned long long init[] = {(u64)size.x, (u64)size.y};
@@ -55,13 +58,18 @@ void update_world(World *world, float dt) {
                     if (!world->by_type._Door->scheduled_for_destruction) {
                         if (world->by_type._Hero->num_pickups >= world->num_pickups_needed_to_unlock_door) {
                             world->by_type._Door->locked = false;
+                            Entity *light_e = get_entity_by_id(world, world->by_type._Door->light_id);
+                            if (light_e) {
+                                Light *light = (Light *)light_e;
+                                light->color = v4(0.2f, 1.0f, 0.2f, 1.0f);
+                            }
                         }
                     }
                 }
             }
         }
     }
-        
+    
     if (world->level_fade.active) {
         world->level_fade.timer += dt;
         if (world->level_fade.timer > world->level_fade.duration) {
@@ -79,52 +87,6 @@ void update_world(World *world, float dt) {
 
     if (!world->level_intro && !camera_intro) {
         update_particles(world->particle_system, dt);
-        
-        // Is it safe to do this here???
-        for (Entity *e : world->entities_to_be_destroyed) {
-            int index = world->all_entities.find(e);
-            if (index != -1) {
-                world->all_entities.ordered_remove_by_index(index);
-            }
-
-            for (int i = 0; i < world->entity_lookup.allocated; i++) {
-                auto bucket = &world->entity_lookup.buckets[i];
-                if (bucket->key == e->id && bucket->value == e) {
-                    world->entity_lookup.occupancy_mask[i] = false;
-                    break;
-                }
-            }
-            world->entity_lookup.count--;
-
-            switch (e->type) {
-                case ENTITY_TYPE_HERO: {
-                    world->by_type._Hero = NULL;
-                } break;
-
-                case ENTITY_TYPE_ENEMY: {
-                    world->by_type._Enemy.ordered_remove_by_value((Enemy *)e);
-                } break;
-
-                case ENTITY_TYPE_PROJECTILE: {
-                    world->by_type._Projectile.ordered_remove_by_value((Projectile *)e);
-                } break;
-
-                case ENTITY_TYPE_PICKUP: {
-                    world->by_type._Pickup.ordered_remove_by_value((Pickup *)e);
-                } break;
-
-                case ENTITY_TYPE_LIGHT: {
-                    world->by_type._Light.ordered_remove_by_value((Light *)e);
-                } break;
-                    
-                case ENTITY_TYPE_DOOR: {
-                    world->by_type._Door = NULL;
-                } break;
-            }
-
-            delete e;
-        }
-        world->entities_to_be_destroyed.count = 0;
     }
 }
 
@@ -203,24 +165,40 @@ static int light_compare_func(const void *_a, const void *_b) {
 
 static void find_closest_lights(World *world, Vector2 position, Light lights[MAX_LIGHTS], int num_lights) {
     // TODO: Implement temporary/frame storage
-    Light **sorted_lights = (Light **)malloc(sizeof(Light *) * world->by_type._Light.count);
-    defer { free(sorted_lights); };
-    memcpy(sorted_lights, world->by_type._Light.data, world->by_type._Light.count * sizeof(Light *));
+    auto const &all_lights = world->by_type._Light;
 
-    for (int i = 0; i < world->by_type._Light.count; i++) {
+    int num_lights_to_sort = 0;
+    for (Light *light : all_lights) {
+        if (light->scheduled_for_destruction) continue;
+
+        num_lights_to_sort++;
+    }
+
+    Light **sorted_lights = new Light*[num_lights_to_sort];
+    defer { delete [] sorted_lights; };
+    num_lights_to_sort = 0;
+    for (Light *light : all_lights) {
+        if (light->scheduled_for_destruction) continue;
+
+        sorted_lights[num_lights_to_sort++] = light;
+    }
+    
+    for (int i = 0; i < num_lights_to_sort; i++) {
         Light *light = sorted_lights[i];
         light->distance_to_player = length(position - light->position);
     }
     
-    qsort(sorted_lights, world->by_type._Light.count, sizeof(Light *), light_compare_func);
+    qsort(sorted_lights, num_lights_to_sort, sizeof(Light *), light_compare_func);
 
     for (int i = 0; i < MAX_LIGHTS; i++) {
         if (i < num_lights) {
             lights[i] = *sorted_lights[i];
+            lights[i].id       = 0;
             lights[i].position = world_space_to_screen_space(world, lights[i].position);
             lights[i].radius   = world_space_to_screen_space(world, v2(0, lights[i].radius)).y;
         } else {
             lights[i] = *sorted_lights[0];
+            lights[i].id        = 0;
             lights[i].position  = v2(0, 0);
             lights[i].color     = v4(0, 0, 0, 1);
             lights[i].radius    = 0.0f;
@@ -229,7 +207,7 @@ static void find_closest_lights(World *world, Vector2 position, Light lights[MAX
     }
 }
 
-static void get_merged_occluders(Array <Vector4> &merged, World *world, Vector2 hero_pos, float search_radius) {
+static void get_merged_occluders(eastl::vector <Vector4> &merged, World *world, Vector2 hero_pos, float search_radius) {
     Tilemap *tm = world->tilemap;
     
     int x_min = Max(0, (int)(hero_pos.x - search_radius));
@@ -237,7 +215,8 @@ static void get_merged_occluders(Array <Vector4> &merged, World *world, Vector2 
     int y_min = Max(0, (int)(hero_pos.y - search_radius));
     int y_max = Min(tm->height - 1, (int)(hero_pos.y + search_radius));
 
-    bool *visited = (bool*)alloca((x_max - x_min + 1) * (y_max - y_min + 1) * sizeof(bool));
+    bool *visited = new bool[((x_max - x_min + 1) * (y_max - y_min + 1) * sizeof(bool))]; // TODO: Use temporary storage
+    defer { delete [] visited; };
     memset(visited, 0, (x_max - x_min + 1) * (y_max - y_min + 1) * sizeof(bool));
 
     for (int y = y_min; y <= y_max; y++) {
@@ -260,9 +239,9 @@ static void get_merged_occluders(Array <Vector4> &merged, World *world, Vector2 
                 Vector4 occluder = v4(screen_space_position.x, screen_space_position.y, screen_space_size.x, screen_space_size.y);
                 
                 //merged.add(v4((float)start_x, (float)y, (float)width, 1.0f));
-                merged.add(occluder);
+                merged.push_back(occluder);
                 
-                if (merged.count >= 64) return;
+                if (merged.size() >= 64) return;
             }
         }
     }
@@ -273,7 +252,7 @@ void draw_world(World *world, bool skip_hud) {
     
     clear_framebuffer(0.2f, 0.5f, 0.8f, 1.0f);
 
-    bool use_lighting = world->by_type._Light.count > 0 && globals.enable_lighting;
+    bool use_lighting = world->by_type._Light.size() > 0 && globals.enable_lighting;
     if (use_lighting) {
         set_shader(globals.shader_lighting);
     } else {
@@ -291,34 +270,42 @@ void draw_world(World *world, bool skip_hud) {
         Vector2 hero_position = world->by_type._Hero ? world->by_type._Hero->position : v2(0, 0);
     
         Light closest_lights[MAX_LIGHTS];
-        int num_closest_lights = Min(MAX_LIGHTS, world->by_type._Light.count);
+
+        int num_closest_lights = 0;
+        for (Light *light : world->by_type._Light) {
+            if (light->scheduled_for_destruction) continue;
+
+            num_closest_lights++;
+        }
+        
+        num_closest_lights = Min(MAX_LIGHTS, num_closest_lights);
         find_closest_lights(world, hero_position, closest_lights, num_closest_lights);
 
-        Array <Vector4> active_occluders;
+        eastl::vector <Vector4> active_occluders;
         get_merged_occluders(active_occluders, world, hero_position, 50.0f);
         
         refresh_lighting(closest_lights, num_closest_lights, active_occluders);
     }
-        
+    
     assert(world->tilemap);
     draw_tilemap(world->tilemap, world);
 
     if (!skip_hud) {
         for (Enemy *enemy : world->by_type._Enemy) {
             if (enemy->scheduled_for_destruction) continue;
-        
+            
             draw_single_enemy(enemy);
         }
 
         for (Projectile *projectile : world->by_type._Projectile) {
             if (projectile->scheduled_for_destruction) continue;
-
+            
             draw_single_projectile(projectile);
         }
 
         for (Pickup *pickup : world->by_type._Pickup) {
             if (pickup->scheduled_for_destruction) continue;
-
+            
             draw_single_pickup(pickup);
         }
 
@@ -338,7 +325,7 @@ void draw_world(World *world, bool skip_hud) {
     for (Light *light : world->by_type._Light) {
         if (!light->should_draw) continue;
         
-        float world_ceiling_y = (float)world->size.y;
+        float world_ceiling_y = (float)world->size.y + 50.0f;
 
         float wire_half_width = 0.02f; 
         float bulb_half_width = 0.2f;
@@ -370,8 +357,9 @@ void draw_world(World *world, bool skip_hud) {
     set_depth_test_mode(DEPTH_TEST_OFF);
 
     if (!skip_hud) {
-        Vector2 screen_space_health_position = world_space_to_screen_space(world, v2(0, VIEW_AREA_HEIGHT - 1.0f));
-        Vector2 screen_space_health_size = world_space_to_screen_space(world, v2(1, 1));
+        Vector2 health_size = v2(0.5f, 0.5f);
+        Vector2 screen_space_health_position = world_space_to_screen_space(world, v2(0, VIEW_AREA_HEIGHT - health_size.y));
+        Vector2 screen_space_health_size = world_space_to_screen_space(world, health_size);
         draw_health(screen_space_health_position, screen_space_health_size);
 
         screen_space_health_position.y -= screen_space_health_size.y;
@@ -383,7 +371,7 @@ void draw_world(World *world, bool skip_hud) {
         set_shader(globals.shader_text);
 
         if (!world->level_fade.active) {
-            int font_size = (int)(0.08f * globals.render_height);
+            int font_size = (int)(0.04f * globals.render_height);
             Dynamic_Font *font = get_font_at_size("OpenSans-Regular", font_size);
             char text[256];
             snprintf(text, sizeof(text), "Level %d", globals.current_world_index);
@@ -393,9 +381,7 @@ void draw_world(World *world, bool skip_hud) {
         }
             
         if (world->level_fade.active) {
-            set_shader(globals.shader_text);
-            
-            int font_size = (int)(0.15f * globals.render_height);
+            int font_size = (int)(0.0075f * globals.render_height);
             Dynamic_Font *font = get_font_at_size("Inconsolata-Regular", font_size);
             float alpha = 1.0f;
             if (world->level_fade.timer > 1.0f) {
@@ -407,6 +393,43 @@ void draw_world(World *world, bool skip_hud) {
             int y = globals.render_height - font->character_height;
             Vector4 color = v4(1, 1, 1, alpha);
             draw_text(font, text, x, y, color);
+        }
+
+        bool camera_intro = false;
+        if (world && world->camera && world->camera->intro_active) camera_intro = true;
+        if (globals.num_worlds_completed == 0 && !world->level_intro && !camera_intro) {
+            if (world->by_type._Hero) {
+                Hero *hero = world->by_type._Hero;
+                if (hero->position.x >= TUTORIAL_START_X &&
+                    hero->position.x <= TUTORIAL_END_X) {
+                    int font_size = (int)(0.02f * globals.render_height);
+                    Dynamic_Font *font = get_font_at_size("OpenSans-Regular", font_size);
+                    char *text = "Jumping on enemies will give you a jump boost";
+
+                    Vector2 text_position;
+                    text_position.x = world_space_to_screen_space(world, v2((hero->position.x + hero->size.x * 0.5f), 0)).x - font->get_string_width_in_pixels(text) * 0.5f;
+                    text_position.x = Max(0.0058616647127784f * globals.render_width, text_position.x);
+                    text_position.y = world_space_to_screen_space(world, v2(0, hero->position.y + hero->size.y * 1.1f)).y;
+
+                    int x = (int)text_position.x;
+                    int y = (int)text_position.y;
+
+                    set_shader(globals.shader_text);
+                    Vector4 color = v4(1, 1, 1, 1);
+                    int offset = font_size / 10;
+                    if (offset) {
+                        draw_text(font, text, x-offset, y, v4(0,0,0,1));
+                        draw_text(font, text, x+offset, y, v4(0,0,0,1));
+                        draw_text(font, text, x, y-offset, v4(0,0,0,1));
+                        draw_text(font, text, x, y+offset, v4(0,0,0,1));
+                        draw_text(font, text, x-offset, y-offset, v4(0,0,0,1));
+                        draw_text(font, text, x+offset, y-offset, v4(0,0,0,1));
+                        draw_text(font, text, x-offset, y+offset, v4(0,0,0,1));
+                        draw_text(font, text, x+offset, y+offset, v4(0,0,0,1));
+                    }
+                    draw_text(font, text, x, y, color);
+                }
+            }
         }
     }
 }
@@ -424,21 +447,21 @@ void destroy_world(World *world) {
 
     world->num_pickups_needed_to_unlock_door = 0;
 
-    world->entities_to_be_destroyed.deallocate();
+    world->entities_to_be_destroyed.clear();
 
-    for (int i = 0; i < world->all_entities.count; i++) {
+    for (int i = 0; i < world->all_entities.size(); i++) {
         delete world->all_entities[i];
         world->all_entities[i] = NULL;
     }
-    world->all_entities.deallocate();
+    world->all_entities.clear();
 
-    world->entity_lookup.deallocate();
+    world->entity_lookup.clear();
 
     world->by_type._Hero = NULL;
     world->by_type._Door = NULL;
-    world->by_type._Enemy.deallocate();
-    world->by_type._Projectile.deallocate();
-    world->by_type._Pickup.deallocate();
+    world->by_type._Enemy.clear();
+    world->by_type._Projectile.clear();
+    world->by_type._Pickup.clear();
 }
 
 static Tilemap *copy_tilemap(Tilemap *tilemap) {
@@ -495,53 +518,53 @@ World *copy_world(World *world) {
     result->particle_system = new Particle_System();
     result->particle_system->particles.reserve(128);
 
-    result->all_entities.reserve(world->all_entities.count);
+    result->all_entities.reserve(world->all_entities.size());
 
     auto clone_entity = [&](Entity *e) -> Entity * {
         if (!e) return nullptr;
-
+        
         Entity *copy = nullptr;
         switch (e->type) {
             case ENTITY_TYPE_HERO: {
                 Hero *h = new Hero(*((Hero *)e));
                 copy = h;
                 result->by_type._Hero = h;
-                register_entity(result, h, ENTITY_TYPE_HERO);
+                register_entity(result, h, ENTITY_TYPE_HERO, h->id);
             } break;
                 
             case ENTITY_TYPE_DOOR: {
                 Door *d = new Door(*((Door *)e));
                 copy = d;
                 result->by_type._Door = d;
-                register_entity(result, d, ENTITY_TYPE_DOOR);
+                register_entity(result, d, ENTITY_TYPE_DOOR, d->id);
             } break;
                 
             case ENTITY_TYPE_ENEMY: {
                 Enemy *en = new Enemy(*((Enemy *)e));
                 copy = en;
-                result->by_type._Enemy.add(en);
-                register_entity(result, en, ENTITY_TYPE_ENEMY);
+                result->by_type._Enemy.push_back(en);
+                register_entity(result, en, ENTITY_TYPE_ENEMY, e->id);
             } break;
                 
             case ENTITY_TYPE_PROJECTILE: {
                 Projectile *p = new Projectile(*((Projectile *)e));
                 copy = p;
-                result->by_type._Projectile.add(p);
-                register_entity(result, p, ENTITY_TYPE_PROJECTILE);
+                result->by_type._Projectile.push_back(p);
+                register_entity(result, p, ENTITY_TYPE_PROJECTILE, p->id);
             } break;
                 
             case ENTITY_TYPE_PICKUP: {
                 Pickup *p = new Pickup(*((Pickup *)e));
                 copy = p;
-                result->by_type._Pickup.add(p);
-                register_entity(result, p, ENTITY_TYPE_PICKUP);
+                result->by_type._Pickup.push_back(p);
+                register_entity(result, p, ENTITY_TYPE_PICKUP, p->id);
             } break;
 
             case ENTITY_TYPE_LIGHT: {
                 Light *l = new Light(*((Light *)e));
                 copy = l;
-                result->by_type._Light.add(l);
-                register_entity(result, l, ENTITY_TYPE_LIGHT);
+                result->by_type._Light.push_back(l);
+                register_entity(result, l, ENTITY_TYPE_LIGHT, l->id);
             } break;
                 
             default: {
@@ -561,6 +584,64 @@ World *copy_world(World *world) {
     }
 
     return result;
+}
+
+void do_entity_destruction(World *world) {
+    bool camera_intro = false;
+    if (world && world->camera && world->camera->intro_active) camera_intro = true;
+    
+    if (!world->level_intro && !camera_intro) {
+        for (Entity *e : world->entities_to_be_destroyed) {
+            if (e == NULL) continue;
+
+            auto it = eastl::find(world->all_entities.begin(), world->all_entities.end(), e);
+            if (it != world->all_entities.end()) {
+                world->all_entities.erase(it);
+            }
+
+            world->entity_lookup.erase(e->id);
+
+            switch (e->type) {
+                case ENTITY_TYPE_HERO: {
+                    world->by_type._Hero = NULL;
+                } break;
+
+                case ENTITY_TYPE_ENEMY: {
+                    auto &enemies = world->by_type._Enemy;
+                    auto it = eastl::find(enemies.begin(), enemies.end(), (Enemy *)e);
+                    if (it != enemies.end()) enemies.erase(it);
+                } break;
+
+                case ENTITY_TYPE_PROJECTILE: {
+                    auto &projectiles = world->by_type._Projectile;
+                    auto it = eastl::find(projectiles.begin(), projectiles.end(), (Projectile *)e);
+                    if (it != projectiles.end()) projectiles.erase(it);
+                } break;
+
+                case ENTITY_TYPE_PICKUP: {
+                    auto &pickups = world->by_type._Pickup;
+                    auto it = eastl::find(pickups.begin(), pickups.end(), (Pickup *)e);
+                    if (it != pickups.end()) pickups.erase(it);
+                } break;
+
+                case ENTITY_TYPE_LIGHT: {
+                    auto &lights = world->by_type._Light;
+                    auto it = eastl::find(lights.begin(), lights.end(), (Light *)e);
+                    if (it != lights.end()) lights.erase(it);
+                } break;
+                    
+                case ENTITY_TYPE_DOOR: {
+                    world->by_type._Door = NULL;
+                } break;
+            }
+
+            if (e) {
+                delete e;
+                e = NULL;
+            }
+        }
+        world->entities_to_be_destroyed.clear();
+    }
 }
 
 Vector2 world_space_to_screen_space(World *world, Vector2 v) {
@@ -594,31 +675,43 @@ Vector2 screen_space_to_world_space(World *world, Vector2 v) {
 }
 
 Entity *get_entity_by_id(World *world, u64 id) {
-    Entity **_e = world->entity_lookup.find(id);
-    if (!_e) return NULL;
-    return *_e;
+    auto it = world->entity_lookup.find(id);
+    if (it != world->entity_lookup.end()) {
+        return it->second;
+    }
+    return NULL;
 }
 
 static u64 generate_id(World *world) {
     while (1) {
         u64 id = genrand64_int64();
-        Entity **_e = world->entity_lookup.find(id);
-        if (!_e) return id;
+
+        bool found = false;
+        for (Entity *e : world->all_entities) {
+            if (e->id == id) {
+                found = true;
+                break;
+            }
+        }
+
+        if (!found && id != 0) return id;
     }
 
     return 0;
 }
 
-static void register_entity(World *world, Entity *e, Entity_Type type) {
-    u64 id = generate_id(world);
-
+static void register_entity(World *world, Entity *e, Entity_Type type, u64 id) {
+    if (id == 0) {
+        id = generate_id(world);
+    }
+    
     e->id    = id;
     e->world = world;
     e->type  = type;
     e->scheduled_for_destruction = false;
 
-    world->entity_lookup.add(id, e);
-    world->all_entities.add(e);
+    world->entity_lookup.insert({id, e});
+    world->all_entities.push_back(e);
 }
 
 Hero *make_hero(World *world) {
@@ -642,7 +735,7 @@ Door *make_door(World *world) {
 Enemy *make_enemy(World *world) {
     Enemy *enemy = new Enemy();
 
-    world->by_type._Enemy.add(enemy);
+    world->by_type._Enemy.push_back(enemy);
     register_entity(world, enemy, ENTITY_TYPE_ENEMY);
     
     return enemy;
@@ -651,7 +744,7 @@ Enemy *make_enemy(World *world) {
 Projectile *make_projectile(World *world) {
     Projectile *projectile = new Projectile();
 
-    world->by_type._Projectile.add(projectile);
+    world->by_type._Projectile.push_back(projectile);
     register_entity(world, projectile, ENTITY_TYPE_PROJECTILE);
 
     return projectile;
@@ -660,7 +753,7 @@ Projectile *make_projectile(World *world) {
 Pickup *make_pickup(World *world) {
     Pickup *pickup = new Pickup();
 
-    world->by_type._Pickup.add(pickup);
+    world->by_type._Pickup.push_back(pickup);
     register_entity(world, pickup, ENTITY_TYPE_PICKUP);
 
     return pickup;
@@ -669,7 +762,7 @@ Pickup *make_pickup(World *world) {
 Light *make_light(World *world) {
     Light *light = new Light();
 
-    world->by_type._Light.add(light);
+    world->by_type._Light.push_back(light);
     register_entity(world, light, ENTITY_TYPE_LIGHT);
 
     return light;
@@ -680,5 +773,5 @@ void schedule_for_destruction(Entity *entity) {
     assert(world);
 
     entity->scheduled_for_destruction = true;
-    world->entities_to_be_destroyed.add(entity);
+    world->entities_to_be_destroyed.push_back(entity);
 }

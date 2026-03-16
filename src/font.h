@@ -33,13 +33,13 @@ struct Dynamic_Font {
     char *name = NULL;
 
     struct FT_FaceRec_ *face = NULL;
-    Hash_Table <int, Glyph_Data *> glyph_lookup;
+    eastl::unordered_map <int, Glyph_Data *> glyph_lookup;
     int character_height = 0;
     
-    Array <Font_Page *> font_pages;
+    eastl::vector <Font_Page *> font_pages;
     Font_Page *current_page = NULL;
 
-    Array <Font_Quad> font_quads;
+    eastl::vector <Font_Quad> font_quads;
     
     void load(Loaded_Font *font, int size);
     Glyph_Data *get_or_load_glyph(int utf32);

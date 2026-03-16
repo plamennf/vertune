@@ -409,7 +409,7 @@ static void draw_debug_hud() {
     char text[128];
     snprintf(text, sizeof(text), "FPS: %d", fps);
     int x = globals.render_width  - font->get_string_width_in_pixels(text);
-    int y = globals.render_height - font->character_height - ((int)(0.08f * globals.render_height));
+    int y = globals.render_height - font->character_height - ((int)(0.04f * globals.render_height));
     draw_text(font, text, x, y, v4(1, 1, 1, 1));
 }
 
@@ -459,7 +459,7 @@ static void respond_to_input() {
     }
 }
 
-static void generate_random_level(World *world, int level_width, int level_height) {
+static void generate_random_level(World *world, int level_width, int level_height, bool create_lights = true) {
     MyZoneScoped;
     
     if (!world) return;
@@ -495,7 +495,7 @@ static void generate_random_level(World *world, int level_width, int level_heigh
         int x_end;
         int y;
     };
-    Array <Platform> platforms;
+    eastl::vector <Platform> platforms;
 
     int last_x = 1;
     int last_y = 2;
@@ -534,19 +534,19 @@ static void generate_random_level(World *world, int level_width, int level_heigh
             tilemap->tiles[y * level_width + x] = 1;
         }
 
-        platforms.add({x_start, x_end, y});
+        platforms.push_back({x_start, x_end, y});
         last_x = x_end;
         last_y = y;
     }
 
     int door_platform_length = 3;
-    int door_y = platforms[platforms.count - 1].y + 2 + rand() % (int)max_jump_height;
+    int door_y = platforms[platforms.size() - 1].y + 2 + rand() % (int)max_jump_height;
     door_y = Min(level_height - 2, door_y);
     int door_x_end = level_width - 1;
     int door_x_start = Max(0, door_x_end - door_platform_length + 1);
 
-    if (door_x_start - platforms[platforms.count - 1].x_end >= 4) {
-        door_x_start = platforms[platforms.count - 1].x_end + 3;
+    if (door_x_start - platforms[platforms.size() - 1].x_end >= 4) {
+        door_x_start = platforms[platforms.size() - 1].x_end + 3;
         door_x_end = level_width - 1;
         door_platform_length = door_x_end - door_x_start;
     }
@@ -555,31 +555,35 @@ static void generate_random_level(World *world, int level_width, int level_heigh
         tilemap->tiles[door_y * level_width + x] = 1;
     }
 
-    platforms.add({door_x_start, door_x_end, door_y});
+    platforms.push_back({door_x_start, door_x_end, door_y});
     
     Hero *hero = make_hero(world);
     hero->position = v2(1, ground_y + 1.0f);
     hero->size     = v2(1, 1);
 
-    Light *start_light = make_light(world);
-    start_light->position  = v2(hero->position.x, hero->position.y + 5.0f);
-    start_light->color     = v4(0.8f, 0.9f, 1.0f, 1.0f);
-    start_light->radius    = 12.0f;
-    start_light->intensity = 1.0f;
-    
-    for (int i = 0; i < platforms.count - 1; i++) {
+    if (create_lights) {
+        Light *start_light = make_light(world);
+        start_light->position  = v2(hero->position.x, hero->position.y + 5.0f);
+        start_light->color     = v4(0.8f, 0.9f, 1.0f, 1.0f);
+        start_light->radius    = 12.0f;
+        start_light->intensity = 1.0f;
+    }
+        
+    for (int i = 0; i < platforms.size() - 1; i++) {
         Platform plat = platforms[i];
         int num_coins = 1 + rand() % 2;
 
-        if (i % 3 == 0 && i != 0) {
-            Light *light = make_light(world);
-            light->position  = v2((plat.x_start + plat.x_end) * 0.5f, (float)level_height - 5.0f);
-            light->color     = v4(1.0f, 1.0f, 0.8f, 1.0f);
-            light->radius    = 25.0f;
-            light->intensity = 0.8f;            
+        if (create_lights) {
+            if (i % 3 == 0 && i != 0) {
+                Light *light = make_light(world);
+                light->position  = v2((plat.x_start + plat.x_end) * 0.5f, (float)level_height - 5.0f);
+                light->color     = v4(1.0f, 1.0f, 0.8f, 1.0f);
+                light->radius    = 25.0f;
+                light->intensity = 0.8f;            
+            }
         }
-        
-        for (int i = 0; i < num_coins; i++) {
+            
+        for (int c = 0; c < num_coins; c++) {
             float coin_x = plat.x_start + 0.5f + rand() % (plat.x_end - plat.x_start + 1);
             float coin_y = plat.y + 2.5f;
 
@@ -598,12 +602,16 @@ static void generate_random_level(World *world, int level_width, int level_heigh
             pickup->color    = v4(1, 1, 0, 1);
             pickup->radius   = 0.25f;
 
-            Light *light       = make_light(world);
-            light->position    = v2(coin_x, coin_y);
-            light->color       = v4(1, 1, 0, 1);
-            light->radius      = 0.5f;
-            light->intensity   = 0.6f;
-            light->should_draw = false;
+            if (create_lights) {
+                Light *light       = make_light(world);
+                light->position    = v2(coin_x, coin_y);
+                light->color       = v4(1, 1, 0, 1);
+                light->radius      = 0.5f;
+                light->intensity   = 1.0f;
+                light->should_draw = false;
+
+                pickup->light_id = light->id;
+            }
         }
     }
         
@@ -612,15 +620,17 @@ static void generate_random_level(World *world, int level_width, int level_heigh
     door->size     = v2(1, 2);
     door->locked   = true;
 
-    Light *door_light = make_light(world);
-    door_light->position  = v2(door->position.x, door->position.y + door->size.y + 2.0f);
-    door_light->color     = v4(1.0f, 0.2f, 0.2f, 1.0f);
-    door_light->radius    = 8.0f;
-    door_light->intensity = 1.2f;
+    if (create_lights) {
+        Light *door_light = make_light(world);
+        door_light->position  = v2(door->position.x, door->position.y + door->size.y + 2.0f);
+        door_light->color     = v4(1.0f, 0.2f, 0.2f, 1.0f);
+        door_light->radius    = 8.0f;
+        door_light->intensity = 1.2f;
 
-    door->light_id = door_light->id;
-    
-    world->num_pickups_needed_to_unlock_door = (int)world->by_type._Pickup.count;
+        door->light_id = door_light->id;
+    }
+        
+    world->num_pickups_needed_to_unlock_door = (int)world->by_type._Pickup.size();
 }
 
 bool create_menu_world() {
@@ -629,7 +639,7 @@ bool create_menu_world() {
     globals.menu_world = new World();
     init_world(globals.menu_world, v2i(20, 18));
 
-    generate_random_level(globals.menu_world, 20, 18);
+    generate_random_level(globals.menu_world, 20, 18, false);
 
     globals.menu_world->camera           = new Camera();
     globals.menu_world->camera->position = globals.menu_world->by_type._Hero->position + v2(VIEW_AREA_WIDTH * 0.5f, VIEW_AREA_HEIGHT * 0.5f);
@@ -716,7 +726,7 @@ bool restart_current_world() {
     if (globals.num_restarts_for_current_world > MAX_RESTARTS) {
         globals.program_mode = PROGRAM_MODE_END;
         globals.current_fail_msg_index = rand() % ArrayCount(fail_msgs);
-        globals.highscores.add(globals.num_worlds_completed);
+        globals.highscores.push_back(globals.num_worlds_completed);
         play_sound(globals.level_fail_sfx);
         return true;
     }
@@ -920,14 +930,14 @@ static void main_loop() {
         if (should_restart_level) {
             restart_current_world();
         } else {
-            globals.current_level_width += 30;
+            globals.current_level_width += 10;
             switch_to_random_world(globals.current_level_width);
             globals.num_worlds_completed++;
         }
 
         globals.should_switch_worlds = false;
     }
-        
+    
     update_time();
     adjust_fps_cap_based_on_performance();
     
@@ -936,7 +946,7 @@ static void main_loop() {
         state->was_down  = state->is_down;
         state->changed   = false;
     }
-
+    
     respond_to_input();
 
     if (globals.program_mode == PROGRAM_MODE_GAME) {
@@ -965,6 +975,8 @@ static void main_loop() {
             if (globals.draw_debug_hud) {
                 draw_debug_hud();
             }
+
+            do_entity_destruction(globals.current_world);
         } else if (globals.program_mode == PROGRAM_MODE_END) {
             if (globals.current_world) {
                 draw_world(globals.current_world, true);
@@ -1072,7 +1084,7 @@ int main(int argc, char *argv[]) {
     
 #ifdef BUILD_DEBUG
     for (int i = 0; i < 10; i++) {
-        globals.highscores.add(100);
+        globals.highscores.push_back(100);
     }
 #elif defined(__EMSCRIPTEN__)
 #else
@@ -1195,6 +1207,9 @@ bool save_audio_settings() {
 
     int enable_lighting = globals.enable_lighting ? 1 : 0;
     fwrite(&enable_lighting, sizeof(int), 1, file);
+
+    int hard_mode_enabled = globals.hard_mode_enabled ? 1 : 0;
+    fwrite(&hard_mode_enabled, sizeof(int), 1, file);
     
     fflush(file);
     fclose(file);
@@ -1235,9 +1250,15 @@ bool load_audio_settings() {
     fread(&globals.sfx_volume, sizeof(float), 1, file);
     clamp(&globals.sfx_volume, 0.0f, 1.0f);
 
-    int enable_lighting;
-    fread(&enable_lighting, sizeof(int), 1, file);
-    globals.enable_lighting = enable_lighting ? true : false;
+    if (version >= 2) {
+        int enable_lighting;
+        fread(&enable_lighting, sizeof(int), 1, file);
+        globals.enable_lighting = enable_lighting ? true : false;
+
+        int hard_mode_enabled;
+        fread(&hard_mode_enabled, sizeof(int), 1, file);
+        globals.hard_mode_enabled = hard_mode_enabled ? true : false;
+    }
 
     return true;
 }
@@ -1251,8 +1272,9 @@ bool save_highscores() {
 
     fwrite(&HIGHSCORE_FILE_MAGIC_NUMBER, sizeof(int), 1, file);
     fwrite(&HIGHSCORE_FILE_VERSION, sizeof(int), 1, file);
-    fwrite(&globals.highscores.count, sizeof(int), 1, file);
-    for (int i = 0; i < globals.highscores.count; i++) {
+    int highscores_size = (int)globals.highscores.size();
+    fwrite(&highscores_size, sizeof(int), 1, file);
+    for (int i = 0; i < globals.highscores.size(); i++) {
         fwrite(&globals.highscores[i], sizeof(int), 1, file);
     }
 

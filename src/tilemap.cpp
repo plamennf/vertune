@@ -56,8 +56,8 @@ bool load_tilemap(Tilemap *tilemap, char *filepath) {
         return false;
     }
 
-    Array <Vector4> colors;
-    Array <u8> collidable_ids;
+    eastl::vector <Vector4> colors;
+    eastl::vector <u8> collidable_ids;
     for (;;) {
         line = consume_next_line(&handler);
         if (!line) {
@@ -82,7 +82,7 @@ bool load_tilemap(Tilemap *tilemap, char *filepath) {
             fcolor.g = color.g / 255.0f;
             fcolor.b = color.b / 255.0f;
             fcolor.a = 255.0f;
-            colors.add(fcolor);
+            colors.push_back(fcolor);
         } else if (starts_with(line, "collidable_ids")) {
             line += string_length("collidable_ids");
             line = eat_spaces(line);
@@ -93,7 +93,7 @@ bool load_tilemap(Tilemap *tilemap, char *filepath) {
                 if (!rhs) break;
 
                 u8 id = (u8)atoi(line);
-                collidable_ids.add(id);
+                collidable_ids.push_back(id);
                 
                 line = rhs;
             }
@@ -102,7 +102,7 @@ bool load_tilemap(Tilemap *tilemap, char *filepath) {
         }
     }
 
-    Array <char *> lines;
+    eastl::vector <char *> lines;
     lines.resize(height);
     for (int i = 0; i < height; i++) {
         lines[i] = consume_next_line(&handler);
@@ -135,11 +135,11 @@ bool load_tilemap(Tilemap *tilemap, char *filepath) {
     tilemap->width  = width;
     tilemap->height = height;
 
-    tilemap->num_colors = colors.count;
-    tilemap->colors     = colors.copy_to_array();
+    tilemap->num_colors = (int)colors.size();
+    tilemap->colors     = copy_to_array(colors);
 
-    tilemap->num_collidable_ids = collidable_ids.count;
-    tilemap->collidable_ids     = collidable_ids.copy_to_array();
+    tilemap->num_collidable_ids = (int)collidable_ids.size();
+    tilemap->collidable_ids     = copy_to_array(collidable_ids);
 
     tilemap->tiles = tiles;
     
@@ -156,29 +156,11 @@ void draw_tilemap(Tilemap *tilemap, World *world) {
             if (tile_id > 0) {
                 assert(tile_id > 0 && tile_id <= tilemap->num_colors);
 
-                {
-                    Vector2 screen_space_position = world_space_to_screen_space(world, v2(xpos, ypos));
-                    Vector2 screen_space_size     = world_space_to_screen_space(world, v2(1, 1));
-                    Vector4 color = tilemap->colors[tile_id - 1];
+                Vector2 screen_space_position = world_space_to_screen_space(world, v2(xpos, ypos));
+                Vector2 screen_space_size     = world_space_to_screen_space(world, v2(1, 1));
+                Vector4 color = tilemap->colors[tile_id - 1];
                     
-                    immediate_quad(screen_space_position, screen_space_size, color);
-                }
-
-                {
-                    Vector2 screen_space_position = world_space_to_screen_space(world, v2(xpos, ypos + 0.95f));
-                    Vector2 screen_space_size = world_space_to_screen_space(world, v2(1.0f, 0.05f));
-                    Vector4 color = v4(1, 1, 1, 0.5f);
-                    
-                    immediate_quad(screen_space_position, screen_space_size, color);
-                }
-
-                {
-                    Vector2 screen_space_position = world_space_to_screen_space(world, v2(xpos, ypos));
-                    Vector2 screen_space_size = world_space_to_screen_space(world, v2(1.0f, 0.1f));
-                    Vector4 color = v4(0, 0, 0, 0.2f);
-                    
-                    immediate_quad(screen_space_position, screen_space_size, color);
-                }
+                immediate_quad(screen_space_position, screen_space_size, color);
             }
 
             xpos += 1.0f;

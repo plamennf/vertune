@@ -38,7 +38,7 @@ void rendering_2d(int width, int height, Matrix4 world_to_view_matrix) {
     globals.world_to_view_matrix   = world_to_view_matrix;
     globals.object_to_world_matrix = matrix4_identity();
 
-    refresh_transform();    
+    refresh_transform();
 }
 
 void rendering_2d(int width, int height, float y_offset) {
@@ -83,5 +83,5 @@ void draw_text(Dynamic_Font *font, char *text, int x, int y, Vector4 color) {
     }
     immediate_flush();
 
-    font->font_quads.count = 0;
+    font->font_quads.clear();
 }

@@ -12,8 +12,8 @@ static bool fonts_initted;
 
 static Memory_Arena glyph_and_page_arena;
 
-static Array <Loaded_Font *> loaded_fonts;
-static Array <Dynamic_Font *> dynamic_fonts;
+static eastl::vector <Loaded_Font *> loaded_fonts;
+static eastl::vector <Dynamic_Font *> dynamic_fonts;
 
 static int font_page_size_x;
 static int font_page_size_y;
@@ -34,7 +34,7 @@ static void ensure_fonts_initted() {
 }
 
 static Loaded_Font *get_loaded_font(char *name) {
-    for (int i = 0; i < loaded_fonts.count; i++) {
+    for (int i = 0; i < loaded_fonts.size(); i++) {
         Loaded_Font *font = loaded_fonts[i];
         if (strings_match(font->name, name)) return font;
     }
@@ -63,7 +63,7 @@ static Loaded_Font *get_loaded_font(char *name) {
     Loaded_Font *font = new Loaded_Font();
     font->name = copy_string(name);
     FT_New_Face(ft_lib, full_path, 0, &font->face);
-    loaded_fonts.add(font);
+    loaded_fonts.push_back(font);
     return font;
 }
 
@@ -95,7 +95,7 @@ static Loaded_Font *get_loaded_font_from_package(char *name) {
         return NULL;
     }
 
-    loaded_fonts.add(font);
+    loaded_fonts.push_back(font);
     return font;
 }
 #endif
@@ -106,9 +106,9 @@ void Dynamic_Font::load(Loaded_Font *font, int size) {
 }
 
 Glyph_Data *Dynamic_Font::get_or_load_glyph(int utf32) {
-    Glyph_Data **_data = glyph_lookup.find(utf32);
-    if (_data) return *_data;
-
+    auto it = glyph_lookup.find(utf32);
+    if (it != glyph_lookup.end()) return it->second;
+    
     FT_Set_Pixel_Sizes(face, 0, character_height);
     
     unsigned long glyph_index = FT_Get_Char_Index(face, utf32);
@@ -118,7 +118,7 @@ Glyph_Data *Dynamic_Font::get_or_load_glyph(int utf32) {
     }
     
     Glyph_Data *data = (Glyph_Data *)glyph_and_page_arena.allocate(sizeof(*data));
-    glyph_lookup.add(utf32, data);
+    glyph_lookup.insert({utf32, data});
     
     data->advance = face->glyph->advance.x >> 6;
     data->offset_x = face->glyph->bitmap_left;
@@ -145,7 +145,7 @@ static Font_Page *add_font_page(Dynamic_Font *font) {
     page->texture = make_texture();
     load_texture_from_data(page->texture, font_page_size_x, font_page_size_y, TEXTURE_FORMAT_R8, NULL);
     
-    font->font_pages.add(page);
+    font->font_pages.push_back(page);
     
     return page;
 }
@@ -231,7 +231,7 @@ void Dynamic_Font::generate_font_quads(char *text, int x, int y) {
                 
                 quad.texture = data->texture;
                 
-                font_quads.add(quad);
+                font_quads.push_back(quad);
             }
 
             x += data->advance;
@@ -242,7 +242,7 @@ void Dynamic_Font::generate_font_quads(char *text, int x, int y) {
 }
 
 Dynamic_Font *get_font_at_size(char *name, int size) {
-    for (int i = 0; i < dynamic_fonts.count; i++) {
+    for (int i = 0; i < dynamic_fonts.size(); i++) {
         Dynamic_Font *font = dynamic_fonts[i];
         if (strings_match(font->name, name) && font->character_height == size) return font;
     }
@@ -255,6 +255,6 @@ Dynamic_Font *get_font_at_size(char *name, int size) {
     Dynamic_Font *font = new Dynamic_Font();
     font->name = copy_string(name);
     font->load(loaded_font, size);
-    dynamic_fonts.add(font);
+    dynamic_fonts.push_back(font);
     return font;
 }
