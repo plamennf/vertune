@@ -88,8 +88,13 @@ void draw_single_pickup(Pickup *pickup);
 struct Door : public Entity {
     bool locked = true;
     u64 light_id = 0;
+
+    bool is_opening    = false;
+    float visual_width = 0.0f;
+    float open_t       = 0.0f;
 };
 
+void unlock_door(Door *door);
 void draw_single_door(Door *door);
 
 struct Light : public Entity {

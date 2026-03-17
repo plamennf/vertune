@@ -3,6 +3,11 @@
 const int VIEW_AREA_WIDTH  = 16;
 const int VIEW_AREA_HEIGHT = 9;
 
+const float NUM_SECONDS_NEEDED_TO_OPEN_DOOR = 1.5f;
+
+const Vector4 DOOR_LIGHT_LOCKED_COLOR   = v4(1.0f, 0.1f, 0.1f, 1.0f);
+const Vector4 DOOR_LIGHT_UNLOCKED_COLOR = v4(0.1f, 1.0f, 0.1f, 1.0f);
+
 struct Entity;
 struct Hero;
 struct Tilemap;
@@ -31,6 +36,11 @@ struct Level_Fade {
     int level_number = 0;
 };
 
+enum Level_Outro_Stage {
+    LEVEL_OUTRO_DOOR_OPENING,
+    LEVEL_OUTRO_HERO_WALKING_THROUGH_DOOR,
+};
+
 struct World {
     Entities_By_Type by_type;
     eastl::unordered_map <u64, Entity *> entity_lookup;
@@ -41,6 +51,8 @@ struct World {
     int num_pickups_needed_to_unlock_door = 0;
     Level_Fade level_fade;
     bool level_intro = true;
+    bool level_outro = false;
+    Level_Outro_Stage level_outro_stage = LEVEL_OUTRO_DOOR_OPENING;
     
     Tilemap *tilemap;
     Camera *camera;
@@ -70,3 +82,11 @@ Enemy *make_enemy(World *world);
 Projectile *make_projectile(World *world);
 Pickup *make_pickup(World *world);
 Light *make_light(World *world);
+
+bool is_level_intro(World *world);
+bool is_camera_intro(World *world);
+bool is_intro(World *world);
+bool is_outro(World *world);
+
+void start_level_outro(World *world, Door *door);
+void update_level_outro(World *world, Door *door, float dt);

@@ -7,3 +7,6 @@ For tomorrow(17.3.2026):
 
 For update after releasing the game:
 - Add more colors to the game(tiles and enemies)
+
+Door texture:
+- https://www.pixilart.com/art/minecraft-door-texture-d1ebc9e9ea54480

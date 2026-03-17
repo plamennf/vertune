@@ -139,13 +139,7 @@ void update_single_hero(Hero *hero, float dt) {
             emit_coin_particles(world->particle_system, pickup->position);
             if (hero->num_pickups >= world->num_pickups_needed_to_unlock_door) {
                 if (world->by_type._Door) {
-                    world->by_type._Door->locked = false;
-                    Entity *light_e = get_entity_by_id(world, world->by_type._Door->light_id);
-                    assert(light_e);
-                    if (light_e) {
-                        Light *light = (Light *)light_e;
-                        light->color = v4(0.2f, 1.0f, 0.2f, 1.0f);
-                    }
+                    unlock_door(world->by_type._Door);
                 }
             }
         }
@@ -161,8 +155,7 @@ void update_single_hero(Hero *hero, float dt) {
         Rectangle2 door_rect = { door->position.x, door->position.y, door->size.x, door->size.y };
         if (are_intersecting(hero_rect, door_rect)) {
             if (!door->locked) {
-                globals.should_switch_worlds = true;
-                play_sound(globals.level_complete_sfx);
+                start_level_outro(world, door);
             }
         }
     }
@@ -381,7 +374,16 @@ void draw_single_enemy(Enemy *enemy, bool disable_eye_flashing) {
             enemy->has_had_first_flash = true;
         }
     }
-        
+
+    if (globals.draw_outlines) {
+        Vector2 outline_size     = v2(0, enemy->radius * 1.1f);
+        Vector2 outline_position = enemy->position;
+
+        Vector2 screen_space_position = world_space_to_screen_space(world, outline_position);
+        Vector2 screen_space_size     = world_space_to_screen_space(world, outline_size);
+        immediate_circle(screen_space_position, screen_space_size.y, v4(0, 0, 0, 1));
+    }
+    
     {
         Vector2 screen_space_position = world_space_to_screen_space(world, enemy->position);
         Vector2 screen_space_size     = world_space_to_screen_space(world, v2(0, enemy->radius));
@@ -470,6 +472,15 @@ void draw_single_projectile(Projectile *projectile) {
     World *world = projectile->world;
     assert(world);
 
+    if (globals.draw_outlines) {
+        Vector2 outline_size     = v2(0, projectile->radius * 1.1f);
+        Vector2 outline_position = projectile->position;
+
+        Vector2 screen_space_position = world_space_to_screen_space(world, outline_position);
+        Vector2 screen_space_size     = world_space_to_screen_space(world, outline_size);
+        immediate_circle(screen_space_position, screen_space_size.y, v4(0, 0, 0, 1));
+    }
+
     Vector2 screen_space_position = world_space_to_screen_space(world, projectile->position);
     Vector2 screen_space_size     = world_space_to_screen_space(world, v2(0, projectile->radius));
 
@@ -480,6 +491,7 @@ void draw_single_pickup(Pickup *pickup) {
     World *world = pickup->world;
     assert(world);
 
+#if 0
     Vector4 glow_color = v4(1, 1, 0, 0.15f);
     for (int i = 1; i <= 3; i++) {
         float glow_size = pickup->radius + (i * 0.05f);
@@ -489,6 +501,16 @@ void draw_single_pickup(Pickup *pickup) {
 
         immediate_circle(screen_space_position, screen_space_size.y, glow_color);
     }
+#endif
+
+    if (globals.draw_outlines) {
+        Vector2 outline_size     = v2(0, pickup->radius * 1.1f);
+        Vector2 outline_position = pickup->position;
+
+        Vector2 screen_space_position = world_space_to_screen_space(world, outline_position);
+        Vector2 screen_space_size     = world_space_to_screen_space(world, outline_size);
+        immediate_circle(screen_space_position, screen_space_size.y, v4(0, 0, 0, 1));
+    }
     
     Vector2 screen_space_position = world_space_to_screen_space(world, pickup->position);
     Vector2 screen_space_size     = world_space_to_screen_space(world, v2(0, pickup->radius));
@@ -496,15 +518,62 @@ void draw_single_pickup(Pickup *pickup) {
     immediate_circle(screen_space_position, screen_space_size.y, pickup->color);
 }
 
+void unlock_door(Door *door) {
+    if (!door) return;
+    
+    door->locked = false;
+    Entity *light_e = get_entity_by_id(door->world, door->light_id);
+    if (light_e) {
+        Light *light = (Light *)light_e;
+        light->color = DOOR_LIGHT_UNLOCKED_COLOR;
+    }
+}
+
 void draw_single_door(Door *door) {
     World *world = door->world;
     assert(world);
 
-    Vector2 screen_space_position = world_space_to_screen_space(world, door->position);
-    Vector2 screen_space_size     = world_space_to_screen_space(world, door->size);
+    set_shader(globals.shader_texture);
+    set_texture(0, globals.door_texture);
 
-    Vector4 color = v4(0, 1, 0, 1);
-    if (door->locked) color = v4(1, 0, 0, 1);
+    float thickness = 0.0f;
+    if (globals.draw_outlines) {
+        thickness = door->size.y * 0.1f;
+    }
+    
+    Vector2 door_size = door->size;
+    if (door->is_opening) {
+        door_size.x = door->visual_width;
+    }
 
+    Vector4 color = v4(1, 1, 1, 1);//v4(0.25f, 0.15f, 0.05f, 1.0f);
+    Vector2 screen_space_position, screen_space_size;
+    
+    if (globals.draw_outlines) {
+        screen_space_position = world_space_to_screen_space(world, v2(door->position.x + thickness, door->position.y));
+        screen_space_size     = world_space_to_screen_space(world, v2(door_size.x - thickness, door_size.y - thickness));
+    } else {
+        screen_space_position = world_space_to_screen_space(world, door->position);
+        screen_space_size     = world_space_to_screen_space(world, door_size);
+    }
+    
     immediate_quad(screen_space_position, screen_space_size, color);
+        
+    if (globals.draw_outlines) {
+        {
+            Vector2 left_outline_position = door->position;
+            Vector2 left_outline_size     = v2(thickness, door->size.y);
+
+            immediate_quad(world_space_to_screen_space(world, left_outline_position), world_space_to_screen_space(world, left_outline_size), v4(0, 0, 0, 1));
+        }
+
+        {
+            Vector2 top_outline_position = door->position + v2(thickness, door->size.y - thickness);
+            Vector2 top_outline_size     = v2(door->size.x - thickness, thickness);
+
+            immediate_quad(world_space_to_screen_space(world, top_outline_position), world_space_to_screen_space(world, top_outline_size), v4(0, 0, 0, 1));            
+        }
+    }
+
+    set_shader(globals.shader_lighting);
 }

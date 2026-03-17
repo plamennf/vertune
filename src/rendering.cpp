@@ -113,3 +113,17 @@ void draw_text_y_flipped(Dynamic_Font *font, char *text, int x, int y, Vector4 c
 
     font->font_quads.clear();    
 }
+
+void draw_text_outlined(Dynamic_Font *font, char *text, int x, int y, Vector4 color, int offset) {
+    if (offset) {
+        draw_text(font, text, x-offset, y, v4(0,0,0,1));
+        draw_text(font, text, x+offset, y, v4(0,0,0,1));
+        draw_text(font, text, x, y-offset, v4(0,0,0,1));
+        draw_text(font, text, x, y+offset, v4(0,0,0,1));
+        draw_text(font, text, x-offset, y-offset, v4(0,0,0,1));
+        draw_text(font, text, x+offset, y-offset, v4(0,0,0,1));
+        draw_text(font, text, x-offset, y+offset, v4(0,0,0,1));
+        draw_text(font, text, x+offset, y+offset, v4(0,0,0,1));
+    }
+    draw_text(font, text, x, y, v4(1, 1, 1, 1));
+}

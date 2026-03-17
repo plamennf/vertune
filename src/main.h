@@ -42,7 +42,7 @@ const int MAX_FPS_CAP = 120;
 const int MAX_SLOW_FRAMES = 120;
 
 const int SETTINGS_FILE_MAGIC_NUMBER = 0x504C4159;
-const int SETTINGS_FILE_VERSION = 2;
+const int SETTINGS_FILE_VERSION = 3;
 
 const int HIGHSCORE_FILE_MAGIC_NUMBER = 0x48534601;
 const int HIGHSCORE_FILE_VERSION = 2;
@@ -134,6 +134,7 @@ struct Global_Variables {
     Texture *empty_heart       = NULL;
     Texture *restart_taken     = NULL;
     Texture *restart_available = NULL;
+    Texture *door_texture      = NULL;
 
     Sound *level_background_music = NULL;
     Sound *menu_background_music = NULL;
@@ -158,7 +159,8 @@ struct Global_Variables {
 
     bool enable_lighting = true;
     bool hard_mode_enabled = false;
-
+    bool draw_outlines = true;
+    
     Memory_Arena frame_memory;
     
 #ifdef USE_PACKAGE

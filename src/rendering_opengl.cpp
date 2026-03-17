@@ -564,6 +564,8 @@ bool load_shader(Shader *shader, char *file_data, char *filepath) {
 void set_shader(Shader *shader) {
     if (current_shader == shader) return;
     
+    immediate_flush();
+
     current_shader = shader;
     
     if (shader) {

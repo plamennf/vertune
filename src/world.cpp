@@ -7,6 +7,7 @@
 #include "font.h"
 #include "text_file_handler.h"
 #include "particles.h"
+#include "audio.h"
 
 #include "mt19937-64.h"
 
@@ -34,10 +35,7 @@ void init_world(World *world, Vector2i size) {
 void update_world(World *world, float dt) {
     MyZoneScoped;
     
-    bool camera_intro = false;
-    if (world && world->camera && world->camera->intro_active) camera_intro = true;
-    
-    if (!world->level_intro && !camera_intro) {
+    if (!is_intro(world) && !is_outro(world)) {
         for (Enemy *enemy : world->by_type._Enemy) {
             if (enemy->scheduled_for_destruction) continue;
             enemy->num_nanoseconds_since_collision_with_the_hero += (s64)(dt * NS_PER_SECOND);
@@ -58,12 +56,7 @@ void update_world(World *world, float dt) {
                 if (world->by_type._Door) {
                     if (!world->by_type._Door->scheduled_for_destruction) {
                         if (world->by_type._Hero->num_pickups >= world->num_pickups_needed_to_unlock_door) {
-                            world->by_type._Door->locked = false;
-                            Entity *light_e = get_entity_by_id(world, world->by_type._Door->light_id);
-                            if (light_e) {
-                                Light *light = (Light *)light_e;
-                                light->color = v4(0.2f, 1.0f, 0.2f, 1.0f);
-                            }
+                            unlock_door(world->by_type._Door);
                         }
                     }
                 }
@@ -79,19 +72,23 @@ void update_world(World *world, float dt) {
     }
 
     update_camera(world->camera, world, dt);
-    if (world->level_intro) {
+    if (is_level_intro(world)) {
         Vector2 delta = world->camera->target - world->camera->position;
         if (length(delta) < 0.1f) {
             world->level_intro = false;
         }
     }
 
-    if (!world->level_intro && !camera_intro) {
+    if (is_outro(world)) {
+        update_level_outro(world, world->by_type._Door, dt);
+    }
+    
+    if (!is_intro(world)) {
         update_particles(world->particle_system, dt);
     }
 }
 
-static void draw_health(Vector2 position, Vector2 size) {
+static void draw_health(Vector2 position, Vector2 size, int pad) {
     if (!globals.current_world) return;
     if (!globals.current_world->by_type._Hero) return;
     
@@ -103,7 +100,13 @@ static void draw_health(Vector2 position, Vector2 size) {
 
     set_shader(globals.shader_texture);
     for (int i = 0; i < max_hearts; i++) {
-        Vector2 pos = v2(position.x + i * (size.x + 6), position.y);
+        Vector2 pos;
+        if (i == 0) {
+            pos = position;
+        } else {
+            pos = v2(position.x + pad * 0.5f + i * (size.x + pad), position.y);
+        }
+        
         Texture *texture = NULL;
         if (i < full_hearts) texture = globals.full_heart;
         else if (i == full_hearts && half_heart) texture = globals.half_heart;
@@ -112,18 +115,31 @@ static void draw_health(Vector2 position, Vector2 size) {
         set_texture(0, texture);
         
         immediate_begin();
+
+        if (globals.draw_outlines) {
+            Vector2 outline_size     = size * 1.15f;
+            Vector2 outline_position = pos - ((outline_size - size) * 0.5f);
+            
+            immediate_quad(outline_position, outline_size, v4(0, 0, 0, 1));
+        }
+        
         immediate_quad(pos, size, v4(1, 1, 1, 1));
         immediate_flush();
     }
 }
 
-static void draw_pickups(Vector2 position, Vector2 size) {
+static void draw_pickups(Vector2 position, Vector2 size, int pad) {
     World *world = globals.current_world;
     if (!world) return;
     
     set_shader(globals.shader_color);
     
     immediate_begin();
+    if (globals.draw_outlines) {
+        Vector2 outline_size     = size * 1.15f;
+        Vector2 outline_position = position - ((outline_size - size) * 0.5f);
+        immediate_circle(outline_position + outline_size * 0.5f, outline_size.y * 0.5f, v4(0, 0, 0, 1));
+    }
     immediate_circle(position + size * 0.5f, size.y * 0.5f, v4(1, 1, 0, 1));
     immediate_flush();
 
@@ -133,7 +149,7 @@ static void draw_pickups(Vector2 position, Vector2 size) {
     Dynamic_Font *font = get_font_at_size("Inconsolata-Regular", font_size);
     char text[256];
     snprintf(text, sizeof(text), "%d/%d", world->by_type._Hero ? world->by_type._Hero->num_pickups : 0, world->num_pickups_needed_to_unlock_door);
-    int x = (int)(position.x + size.x);
+    int x = (int)(position.x + size.x) + pad;
     int y = (int)(position.y) + font->character_height / 4;
     draw_text(font, text, x, y, v4(1, 1, 0, 1));
 }
@@ -294,10 +310,8 @@ void draw_world(World *world, bool skip_hud) {
         for (Enemy *enemy : world->by_type._Enemy) {
             if (enemy->scheduled_for_destruction) continue;
 
-            bool camera_intro = false;
-            if (world && world->camera && world->camera->intro_active) camera_intro = true;
     
-            if (!world->level_intro && !camera_intro) {
+            if (!is_intro(world)) {
                 draw_single_enemy(enemy, false);
             } else {
                 draw_single_enemy(enemy, true);
@@ -338,20 +352,30 @@ void draw_world(World *world, bool skip_hud) {
         float bulb_half_width = 0.2f;
         float bulb_height     = 0.15f;
 
-        Vector2 wire_pos  = v2(light->position.x - wire_half_width, light->position.y);
-        Vector2 wire_size = v2(wire_half_width * 2.0f, world_ceiling_y - light->position.y);
+        Vector2 wire_position = v2(light->position.x - wire_half_width, light->position.y);
+        Vector2 wire_size     = v2(wire_half_width * 2.0f, world_ceiling_y - light->position.y);
 
-        Vector2 bulb_pos  = v2(light->position.x - bulb_half_width, light->position.y);
-        Vector2 bulb_size = v2(bulb_half_width * 2.0f, bulb_height);
+        Vector2 bulb_position = v2(light->position.x - bulb_half_width, light->position.y);
+        Vector2 bulb_size     = v2(bulb_half_width * 2.0f, bulb_height);
 
-        Vector2 ss_wire_pos  = world_space_to_screen_space(world, wire_pos);
-        Vector2 ss_wire_size = world_space_to_screen_space(world, wire_size);
+        Vector2 screen_space_wire_position = world_space_to_screen_space(world, wire_position);
+        Vector2 screen_space_wire_size     = world_space_to_screen_space(world, wire_size);
     
-        Vector2 ss_bulb_pos  = world_space_to_screen_space(world, bulb_pos);
-        Vector2 ss_bulb_size = world_space_to_screen_space(world, bulb_size);
+        Vector2 screen_space_bulb_position = world_space_to_screen_space(world, bulb_position);
+        Vector2 screen_space_bulb_size     = world_space_to_screen_space(world, bulb_size);
 
-        immediate_quad(ss_wire_pos, ss_wire_size, v4(0.05f, 0.05f, 0.05f, 1.0f));
-        immediate_quad(ss_bulb_pos, ss_bulb_size, light->color);
+        immediate_quad(screen_space_wire_position, screen_space_wire_size, v4(0.05f, 0.05f, 0.05f, 1.0f));
+
+        if (globals.draw_outlines) {
+            Vector2 outline_size     = v2(bulb_size.x * 1.1f, bulb_size.y * 1.2f);
+            Vector2 outline_position = bulb_position - (outline_size - bulb_size) * 0.5f;
+
+            Vector2 screen_space_position = world_space_to_screen_space(world, outline_position);
+            Vector2 screen_space_size     = world_space_to_screen_space(world, outline_size);
+            immediate_quad(screen_space_position, screen_space_size, v4(0, 0, 0, 1));
+        }
+
+        immediate_quad(screen_space_bulb_position, screen_space_bulb_size, light->color);
     }
     
     immediate_flush();
@@ -364,15 +388,26 @@ void draw_world(World *world, bool skip_hud) {
     set_depth_test_mode(DEPTH_TEST_OFF);
 
     if (!skip_hud) {
-        Vector2 health_size = v2(0.5f, 0.5f);
-        Vector2 screen_space_health_position = world_space_to_screen_space(world, v2(0, VIEW_AREA_HEIGHT - health_size.y));
-        Vector2 screen_space_health_size = world_space_to_screen_space(world, health_size);
-        draw_health(screen_space_health_position, screen_space_health_size);
+        int pad = (int)(0.002f * globals.render_width);
+        if (globals.draw_outlines) {
+            pad = pad * 2;
+        }
+        
+        Vector2 health_size = v2(0.05f * globals.render_height, 0.05f * globals.render_height);
+        Vector2 screen_space_health_position = v2(pad * 0.5f, (float)globals.render_height - health_size.y);
+        Vector2 screen_space_health_size = health_size;
+        draw_health(screen_space_health_position, screen_space_health_size, pad);
 
-        screen_space_health_position.y -= screen_space_health_size.y;
-        draw_pickups(screen_space_health_position, screen_space_health_size);
+        int stride = (int)screen_space_health_size.y;
+        if (globals.draw_outlines) {
+            stride = (int)(stride * 1.15f);
+        }
+        
+        screen_space_health_position.y -= stride;
+        
+        draw_pickups(screen_space_health_position, screen_space_health_size, pad);
 
-        screen_space_health_position.y -= screen_space_health_size.y;
+        screen_space_health_position.y -= stride;
         draw_restarts(screen_space_health_position, screen_space_health_size);
 
         set_shader(globals.shader_text);
@@ -384,7 +419,13 @@ void draw_world(World *world, bool skip_hud) {
             snprintf(text, sizeof(text), "Level %d", globals.current_world_index);
             int x = globals.render_width - font->get_string_width_in_pixels(text);
             int y = globals.render_height - font->character_height;
-            draw_text(font, text, x, y, v4(1, 1, 1, 1));
+
+            if (globals.draw_outlines) {
+                int offset = font->character_height / 20;
+                draw_text_outlined(font, text, x, y, v4(1, 1, 1, 1), offset);
+            } else {
+                draw_text(font, text, x, y, v4(1, 1, 1, 1));
+            }
         }
             
         if (world->level_fade.active) {
@@ -402,9 +443,7 @@ void draw_world(World *world, bool skip_hud) {
             draw_text(font, text, x, y, color);
         }
 
-        bool camera_intro = false;
-        if (world && world->camera && world->camera->intro_active) camera_intro = true;
-        if (globals.num_worlds_completed == 0 && !world->level_intro && !camera_intro) {
+        if (globals.num_worlds_completed == 0 && !is_intro(world)) {
             if (world->by_type._Hero) {
                 Hero *hero = world->by_type._Hero;
                 if (hero->position.x >= TUTORIAL_START_X &&
@@ -424,17 +463,7 @@ void draw_world(World *world, bool skip_hud) {
                     set_shader(globals.shader_text);
                     Vector4 color = v4(1, 1, 1, 1);
                     int offset = font_size / 10;
-                    if (offset) {
-                        draw_text(font, text, x-offset, y, v4(0,0,0,1));
-                        draw_text(font, text, x+offset, y, v4(0,0,0,1));
-                        draw_text(font, text, x, y-offset, v4(0,0,0,1));
-                        draw_text(font, text, x, y+offset, v4(0,0,0,1));
-                        draw_text(font, text, x-offset, y-offset, v4(0,0,0,1));
-                        draw_text(font, text, x+offset, y-offset, v4(0,0,0,1));
-                        draw_text(font, text, x-offset, y+offset, v4(0,0,0,1));
-                        draw_text(font, text, x+offset, y+offset, v4(0,0,0,1));
-                    }
-                    draw_text(font, text, x, y, color);
+                    draw_text_outlined(font, text, x, y, color, offset);
                 }
             }
         }
@@ -594,10 +623,7 @@ World *copy_world(World *world) {
 }
 
 void do_entity_destruction(World *world) {
-    bool camera_intro = false;
-    if (world && world->camera && world->camera->intro_active) camera_intro = true;
-    
-    if (!world->level_intro && !camera_intro) {
+    if (!is_intro(world)) {
         for (Entity *e : world->entities_to_be_destroyed) {
             if (e == NULL) continue;
 
@@ -781,4 +807,66 @@ void schedule_for_destruction(Entity *entity) {
 
     entity->scheduled_for_destruction = true;
     world->entities_to_be_destroyed.push_back(entity);
+}
+
+bool is_level_intro(World *world) {
+    return world->level_intro;
+}
+
+bool is_camera_intro(World *world) {
+    bool camera_intro = false;
+    if (world && world->camera && world->camera->intro_active) camera_intro = true;
+    return camera_intro;
+}
+
+bool is_intro(World *world) {
+    return is_level_intro(world) || is_camera_intro(world);
+}
+
+bool is_outro(World *world) {
+    return world->level_outro;
+}
+
+void start_level_outro(World *world, Door *door) {
+    world->level_outro       = true;
+    world->level_outro_stage = LEVEL_OUTRO_DOOR_OPENING;
+    door->is_opening         = true;
+    
+    Hero *hero = world->by_type._Hero;
+    if (!hero) return;
+
+    hero->position.x = door->position.x - hero->size.x;
+    hero->position.y = door->position.y;
+}
+
+void update_level_outro(World *world, Door *door, float dt) {
+    if (door->open_t < 1.0f) {
+        door->open_t += dt * NUM_SECONDS_NEEDED_TO_OPEN_DOOR;
+    }
+    bool should_update_hero = door->open_t >= 0.3f;
+
+    if (should_update_hero) {
+        Hero *hero = world->by_type._Hero;
+        if (!hero) {
+            globals.should_switch_worlds = true;
+            play_sound(globals.level_complete_sfx);
+            world->level_outro = false;
+            return;
+        }
+
+        float target = door->position.x + door->size.x;
+            
+        float speed = 2.0f * hero->size.x * NUM_SECONDS_NEEDED_TO_OPEN_DOOR;
+        hero->position.x = move_toward(hero->position.x, target, speed * dt);
+
+        if (hero->position.x >= target) {
+            globals.should_switch_worlds = true;
+            play_sound(globals.level_complete_sfx);
+            world->level_outro = false;
+            return;
+        }
+    }
+    
+    door->visual_width = door->size.x * (1.0f - door->open_t);
+    door->visual_width = Max(door->visual_width, door->size.x * 0.1f);
 }

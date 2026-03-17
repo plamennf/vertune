@@ -342,6 +342,9 @@ static void load_assets() {
     
     globals.restart_available = find_or_load_texture("restart_available");
     if (!globals.restart_available) globals.restart_available = white_texture;
+
+    globals.door_texture = find_or_load_texture("door");
+    if (!globals.door_texture) globals.door_texture = white_texture;
     
     globals.menu_background_music = find_or_load_sound("menu-music", true);
     globals.level_background_music = find_or_load_sound("level-music", true);
@@ -407,7 +410,13 @@ static void draw_debug_hud() {
     snprintf(text, sizeof(text), "FPS: %d", fps);
     int x = globals.render_width  - font->get_string_width_in_pixels(text);
     int y = globals.render_height - font->character_height - ((int)(0.04f * globals.render_height));
-    draw_text(font, text, x, y, v4(1, 1, 1, 1));
+
+    if (globals.draw_outlines) {
+        int offset = font->character_height / 20;
+        draw_text_outlined(font, text, x, y, v4(1, 1, 1, 1), offset);
+    } else {
+        draw_text(font, text, x, y, v4(1, 1, 1, 1));
+    }
 }
 
 static void respond_to_input() {
@@ -659,9 +668,9 @@ static void generate_random_level(World *world, int level_width, int level_heigh
     if (create_lights) {
         Light *door_light = make_light(world);
         door_light->position  = v2(door->position.x, door->position.y + door->size.y + 2.0f);
-        door_light->color     = v4(1.0f, 0.1f, 0.1f, 1.0f);
+        door_light->color     = DOOR_LIGHT_LOCKED_COLOR;
         door_light->radius    = 12.0f;
-        door_light->intensity = 2.0f;
+        door_light->intensity = 1.0f;
 
         door->light_id = door_light->id;
     }
@@ -1001,8 +1010,6 @@ static void main_loop() {
 
         if (is_key_pressed(SDL_SCANCODE_ESCAPE) || is_key_pressed(SDL_SCANCODE_TAB) || is_key_pressed(SDL_SCANCODE_P)) {
             toggle_menu();
-        } else if (is_key_pressed(SDL_SCANCODE_F)) {
-            globals.draw_debug_hud = !globals.draw_debug_hud;
         }
     }
 
@@ -1273,6 +1280,12 @@ bool save_settings() {
 
     int hard_mode_enabled = globals.hard_mode_enabled ? 1 : 0;
     fwrite(&hard_mode_enabled, sizeof(int), 1, file);
+
+    int draw_debug_hud = globals.draw_debug_hud ? 1 : 0;
+    fwrite(&draw_debug_hud, sizeof(int), 1, file);
+
+    int draw_outlines = globals.draw_outlines ? 1 : 0;
+    fwrite(&draw_outlines, sizeof(int), 1, file);
     
     fflush(file);
     fclose(file);
@@ -1329,6 +1342,16 @@ bool load_settings() {
         globals.hard_mode_enabled = hard_mode_enabled ? true : false;
     }
 
+    if (version >= 3) {
+        int draw_debug_hud;
+        fread(&draw_debug_hud, sizeof(int), 1, file);
+        globals.draw_debug_hud = draw_debug_hud ? true : false;
+
+        int draw_outlines;
+        fread(&draw_outlines, sizeof(int), 1, file);
+        globals.draw_outlines = draw_outlines ? true : false;
+    }
+    
     return true;
 }
 

@@ -96,11 +96,11 @@ static void advance_menu_choice(int delta) {
         play_sound(globals.menu_change_option);
     } else if (current_menu_page == MENU_PAGE_SETTINGS) {
         if (current_menu_choice < 0) {
-            current_menu_choice += 3;
+            current_menu_choice += 7;
         }
 
-        if (current_menu_choice >= 5) {
-            current_menu_choice -= 5;
+        if (current_menu_choice >= 7) {
+            current_menu_choice -= 7;
         }
 
         play_sound(globals.menu_change_option);
@@ -469,6 +469,25 @@ static void draw_settings() {
     }
 
     //
+    // Draw enable debug hud
+    //
+    {
+        set_shader(globals.shader_text);
+
+        char *text = "Draw debug hud:";
+        x = (int)(0.005f * globals.render_width);
+        draw_text(font, text, x, cursor_y, v4(1, 1, 1, 1));
+
+        text = globals.draw_debug_hud ? "Yes" : "No";
+
+        x = (int)(globals.render_width * 0.45f);
+        
+        draw_text(font, text, x, cursor_y, (current_menu_choice == 3) ? v4(1, 0.8f, 0.2f, 1) : v4(1, 1, 1, 1));
+        
+        cursor_y -= stride;
+    }
+
+    //
     // Draw enable lighting
     //
     {
@@ -482,7 +501,7 @@ static void draw_settings() {
 
         x = (int)(globals.render_width * 0.45f);
         
-        draw_text(font, text, x, cursor_y, (current_menu_choice == 3) ? v4(1, 0.8f, 0.2f, 1) : v4(1, 1, 1, 1));
+        draw_text(font, text, x, cursor_y, (current_menu_choice == 4) ? v4(1, 0.8f, 0.2f, 1) : v4(1, 1, 1, 1));
         
         cursor_y -= stride;
     }
@@ -501,7 +520,26 @@ static void draw_settings() {
 
         x = (int)(globals.render_width * 0.45f);
         
-        draw_text(font, text, x, cursor_y, (current_menu_choice == 4) ? v4(1, 0.8f, 0.2f, 1) : v4(1, 1, 1, 1));
+        draw_text(font, text, x, cursor_y, (current_menu_choice == 5) ? v4(1, 0.8f, 0.2f, 1) : v4(1, 1, 1, 1));
+        
+        cursor_y -= stride;
+    }
+
+    //
+    // Draw enable outline drawing
+    //
+    {
+        set_shader(globals.shader_text);
+
+        char *text = "Draw outlines:";
+        x = (int)(0.005f * globals.render_width);
+        draw_text(font, text, x, cursor_y, v4(1, 1, 1, 1));
+
+        text = globals.draw_outlines ? "Yes" : "No";
+
+        x = (int)(globals.render_width * 0.45f);
+        
+        draw_text(font, text, x, cursor_y, (current_menu_choice == 6) ? v4(1, 0.8f, 0.2f, 1) : v4(1, 1, 1, 1));
         
         cursor_y -= stride;
     }
@@ -657,9 +695,13 @@ void draw_main_menu() {
 
             if (is_key_pressed(SDL_SCANCODE_RETURN)) {
                 if (current_menu_choice == 3) {
-                    globals.enable_lighting = !globals.enable_lighting;
+                    globals.draw_debug_hud = !globals.draw_debug_hud;
                 } else if (current_menu_choice == 4) {
+                    globals.enable_lighting = !globals.enable_lighting;
+                } else if (current_menu_choice == 5) {
                     globals.hard_mode_enabled = !globals.hard_mode_enabled;
+                } else if (current_menu_choice == 6) {
+                    globals.draw_outlines = !globals.draw_outlines;
                 }
             }
             
