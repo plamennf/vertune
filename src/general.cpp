@@ -9,6 +9,7 @@
 #include <Lmcons.h>
 
 static char name_of_user_buffer[UNLEN + 1];
+static LARGE_INTEGER global_perf_freq;
 
 #endif
 
@@ -509,11 +510,23 @@ char *get_name_of_user() {
     return name_of_user_buffer;
 }
 
+s64 get_time_nanoseconds() {
+    if (!global_perf_freq.QuadPart) {
+        QueryPerformanceFrequency(&global_perf_freq);
+    }
+
+    LARGE_INTEGER perf_counter;
+    QueryPerformanceCounter(&perf_counter);
+
+    return (s64)((perf_counter.QuadPart * 1000000000ULL) / (global_perf_freq.QuadPart ? global_perf_freq.QuadPart : 1));
+}
+
 #endif
 
+/*
 s64 get_time_nanoseconds() {
     Uint64 counter = SDL_GetPerformanceCounter();
     Uint64 freq = SDL_GetPerformanceFrequency();
-    // Convert seconds → nanoseconds (1s = 1e9 ns)
     return (Uint64)((counter * 1000000000ULL) / freq);
 }
+*/

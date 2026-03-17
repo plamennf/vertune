@@ -8,6 +8,7 @@
 #include "text_file_handler.h"
 #include "particles.h"
 #include "audio.h"
+#include "resource_manager.h"
 
 #include "mt19937-64.h"
 
@@ -232,7 +233,6 @@ static void get_merged_occluders(eastl::vector <Vector4> &merged, World *world, 
     int y_max = Min(tm->height - 1, (int)(hero_pos.y + search_radius));
 
     bool *visited = globals.frame_memory.allocate_array<bool>(((x_max - x_min + 1) * (y_max - y_min + 1) * sizeof(bool)));
-    //defer { delete [] visited; };
     memset(visited, 0, (x_max - x_min + 1) * (y_max - y_min + 1) * sizeof(bool));
 
     for (int y = y_min; y <= y_max; y++) {
@@ -251,10 +251,9 @@ static void get_merged_occluders(eastl::vector <Vector4> &merged, World *world, 
 
                 Vector2 screen_space_position = world_space_to_screen_space(world, v2(floorf((float)start_x), floorf((float)y)));
                 Vector2 screen_space_size = world_space_to_screen_space(world, v2((float)width, 1));
-                    
+                
                 Vector4 occluder = v4(screen_space_position.x, screen_space_position.y, screen_space_size.x, screen_space_size.y);
                 
-                //merged.add(v4((float)start_x, (float)y, (float)width, 1.0f));
                 merged.push_back(occluder);
                 
                 if (merged.size() >= 64) return;
@@ -268,17 +267,87 @@ void draw_world(World *world, bool skip_hud) {
     
     clear_framebuffer(0.2f, 0.5f, 0.8f, 1.0f);
 
+    rendering_2d(globals.render_width, globals.render_height);
+
+    set_blend_mode(BLEND_MODE_ALPHA);
+    set_cull_mode(CULL_MODE_OFF);
+    set_depth_test_mode(DEPTH_TEST_OFF);
+    
+    switch (world->level_type) {
+        case LEVEL_TYPE_BASIC: {
+
+        } break;
+
+        case LEVEL_TYPE_OCEAN: {
+            Texture *ocean = find_or_load_texture("ocean");
+            if (!ocean) ocean = globals.white_texture;
+
+            Texture *cloud = find_or_load_texture("ocean/3");
+            if (!cloud) cloud = globals.white_texture;
+
+            set_shader(globals.shader_texture);
+            set_texture(0, ocean);
+
+            float real_world_time = (float)nanoseconds_to_seconds(globals.time_info.real_world_time);
+            
+            float ocean_bob = sinf(real_world_time * 0.8f) * 0.2f;
+            
+            Vector2 ocean_size     = world_space_to_screen_space(world, v2(VIEW_AREA_WIDTH, VIEW_AREA_HEIGHT));
+            Vector2 ocean_position = world_space_to_screen_space(world, v2(0, ocean_bob));
+            immediate_quad(ocean_position, ocean_size, v4(1, 1, 1, 1));
+            immediate_flush();
+            
+            set_texture(0, cloud);
+
+            for (int i = 0; i < world->clouds_for_ocean_level.size(); i++) {
+                Cloud cloud = world->clouds_for_ocean_level[i];
+
+                float speed    = cloud.speed_multiplier;
+                float x_offset = real_world_time * speed;
+
+                float cloud_parallax  = 1.0f - (speed * 0.2f);
+                float camera_offset_x = world->camera->position.x * cloud_parallax;
+                
+                float world_x   = cloud.position.x + x_offset - camera_offset_x;
+                float wrapped_x = fmodf(world_x, VIEW_AREA_WIDTH + 4.0f) - 2.0f;
+
+                Vector2 cloud_size = cloud.size;
+
+                Vector2 screen_position = world_space_to_screen_space(world, v2(wrapped_x, cloud.position.y));
+                Vector2 screen_size = world_space_to_screen_space(world, cloud_size);
+
+                float alpha = 0.7f + (sinf((float)(real_world_time + i)) * 0.2f);
+                immediate_quad(screen_position - (screen_size * 0.5f), screen_size, v4(1, 1, 1, alpha));
+            }
+            
+            immediate_flush();
+
+
+            set_shader(globals.shader_color);
+
+            float frame_thickness = 0.8f;
+            Vector4 wall_color = v4(0.05f, 0.05f, 0.07f, 1.0f);
+            
+            immediate_quad(world_space_to_screen_space(world, v2(0, 0)), world_space_to_screen_space(world, v2(frame_thickness, (float)VIEW_AREA_HEIGHT)), wall_color);
+            immediate_quad(world_space_to_screen_space(world, v2((float)VIEW_AREA_WIDTH - frame_thickness, 0)), world_space_to_screen_space(world, v2(frame_thickness, (float)VIEW_AREA_HEIGHT)), wall_color);
+            immediate_quad(world_space_to_screen_space(world, v2(0, (float)VIEW_AREA_HEIGHT - frame_thickness)), world_space_to_screen_space(world, v2((float)VIEW_AREA_WIDTH, frame_thickness)), wall_color);
+
+            float bar_x = VIEW_AREA_WIDTH * 0.33f;
+            immediate_quad(world_space_to_screen_space(world, v2(bar_x, 0)), world_space_to_screen_space(world, v2(0.2f, VIEW_AREA_HEIGHT)), v4(0.05f, 0.05f, 0.05f, 1.0f));
+            immediate_quad(world_space_to_screen_space(world, v2(bar_x * 2.0f, 0)), world_space_to_screen_space(world, v2(0.2f, VIEW_AREA_HEIGHT)), v4(0.05f, 0.05f, 0.05f, 1.0f));
+            
+            immediate_flush();
+        } break;
+    }
+
+    rendering_2d(globals.render_width, globals.render_height, get_world_to_view_matrix(world->camera, world));
+    
     bool use_lighting = world->by_type._Light.size() > 0 && globals.enable_lighting;
     if (use_lighting) {
         set_shader(globals.shader_lighting);
     } else {
         set_shader(globals.shader_color);
     }
-    rendering_2d(globals.render_width, globals.render_height, get_world_to_view_matrix(world->camera, world));
-
-    set_blend_mode(BLEND_MODE_ALPHA);
-    set_cull_mode(CULL_MODE_OFF);
-    set_depth_test_mode(DEPTH_TEST_OFF);
     
     immediate_begin();
 
@@ -541,6 +610,12 @@ World *copy_world(World *world) {
     result->num_pickups_needed_to_unlock_door = world->num_pickups_needed_to_unlock_door;
     result->level_fade = world->level_fade;
     result->level_intro = world->level_intro;
+    result->level_type  = world->level_type;
+
+    result->clouds_for_ocean_level.resize(world->clouds_for_ocean_level.size());
+    for (int i = 0; i < result->clouds_for_ocean_level.size(); i++) {
+        result->clouds_for_ocean_level[i] = world->clouds_for_ocean_level[i];
+    }
 
     if (world->tilemap) {
         result->tilemap = copy_tilemap(world->tilemap);
@@ -829,7 +904,6 @@ bool is_outro(World *world) {
 
 void start_level_outro(World *world, Door *door) {
     world->level_outro       = true;
-    world->level_outro_stage = LEVEL_OUTRO_DOOR_OPENING;
     door->is_opening         = true;
     
     Hero *hero = world->by_type._Hero;

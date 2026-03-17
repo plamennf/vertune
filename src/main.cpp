@@ -21,6 +21,8 @@
 #endif
 #include <stdio.h>
 
+#include <eastl/sort.h>
+
 Global_Variables globals;
 
 char *fail_msgs[] = {
@@ -324,27 +326,27 @@ void main() {
 static void load_assets() {
     MyZoneScoped;
     
-    Texture *white_texture = make_texture();
+    globals.white_texture = make_texture();
     u8 white_texture_data[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
-    load_texture_from_data(white_texture, 1, 1, TEXTURE_FORMAT_RGBA8, white_texture_data);
+    load_texture_from_data(globals.white_texture, 1, 1, TEXTURE_FORMAT_RGBA8, white_texture_data);
     
     globals.full_heart    = find_or_load_texture("heart_full_16x16");
-    if (!globals.full_heart) globals.full_heart = white_texture;
+    if (!globals.full_heart) globals.full_heart = globals.white_texture;
     
     globals.half_heart    = find_or_load_texture("heart_half_16x16");
-    if (!globals.half_heart) globals.half_heart = white_texture;
+    if (!globals.half_heart) globals.half_heart = globals.white_texture;
     
     globals.empty_heart   = find_or_load_texture("heart_empty_16x16");
-    if (!globals.empty_heart) globals.empty_heart = white_texture;
+    if (!globals.empty_heart) globals.empty_heart = globals.white_texture;
     
     globals.restart_taken = find_or_load_texture("restart_taken");
-    if (!globals.restart_taken) globals.restart_taken = white_texture;
+    if (!globals.restart_taken) globals.restart_taken = globals.white_texture;
     
     globals.restart_available = find_or_load_texture("restart_available");
-    if (!globals.restart_available) globals.restart_available = white_texture;
+    if (!globals.restart_available) globals.restart_available = globals.white_texture;
 
     globals.door_texture = find_or_load_texture("door");
-    if (!globals.door_texture) globals.door_texture = white_texture;
+    if (!globals.door_texture) globals.door_texture = globals.white_texture;
     
     globals.menu_background_music = find_or_load_sound("menu-music", true);
     globals.level_background_music = find_or_load_sound("level-music", true);
@@ -465,7 +467,7 @@ static void respond_to_input() {
     }
 }
 
-static void generate_random_level(World *world, int level_width, int level_height, bool create_lights = true) {
+static void generate_random_level(World *world, int level_width, int level_height, bool create_lights = true, Level_Type *override_level_type = NULL) {
     MyZoneScoped;
     
     if (!world) return;
@@ -474,6 +476,42 @@ static void generate_random_level(World *world, int level_width, int level_heigh
         world->tilemap = new Tilemap();
     }
 
+    int level_type = rand() % LEVEL_TYPE_COUNT;
+    world->level_type = (Level_Type)level_type;
+
+    if (override_level_type) {
+        world->level_type = *override_level_type;
+    }
+
+    if (world->level_type == LEVEL_TYPE_OCEAN) {
+        int num_clouds = 3 + (rand() % 3);
+
+        for (int i = 0; i < num_clouds; i++) {
+            float rx = (float)(rand() % 100) / 100.0f;
+            float ry = 0.7f + ((float)(rand() % 30) / 100.0f);
+            float rs = 0.5f + ((float)(rand() % 100) / 100.0f);
+            float ra = 0.6f + ((float)(rand() % 40) / 100.0f);
+
+            Vector2 base_size  = v2(2.0f * (16.0f/9.0f), 2.0f);
+            Vector2 final_size = base_size * rs;
+
+            Vector2 world_position = v2(VIEW_AREA_WIDTH * rx, VIEW_AREA_HEIGHT * ry);
+            float speed_multiplier = rs * 0.8f;
+
+            Cloud cloud;
+
+            cloud.position         = world_position;
+            cloud.size             = final_size;
+            cloud.speed_multiplier = speed_multiplier;
+            
+            world->clouds_for_ocean_level.push_back(cloud);
+        }
+
+        eastl::sort(world->clouds_for_ocean_level.begin(), world->clouds_for_ocean_level.end(), [](Cloud const &a, Cloud const &b) {
+            return a.speed_multiplier < b.speed_multiplier;
+        });
+    }
+        
     Tilemap *tilemap = world->tilemap;
     tilemap->width   = level_width;
     tilemap->height  = level_height;
@@ -493,7 +531,7 @@ static void generate_random_level(World *world, int level_width, int level_heigh
     for (int x = 0; x < level_width; x++) {
         tilemap->tiles[ground_y * level_width + x] = 1;
     }
-
+    
     float max_jump_height = (JUMP_FORCE * JUMP_FORCE / (-2.0f * GRAVITY)) - 1.0f;
     
     struct Platform {
@@ -646,18 +684,6 @@ static void generate_random_level(World *world, int level_width, int level_heigh
 
             features_spawned++;
         }
-
-        /*
-        if (create_lights) {
-            if (i % 3 == 0 && i != 0) {
-                Light *light = make_light(world);
-                light->position  = v2((platform.x_start + platform.x_end) * 0.5f, (float)level_height - 5.0f);
-                light->color     = v4(1.0f, 1.0f, 0.8f, 1.0f);
-                light->radius    = 25.0f;
-                light->intensity = 1.2f;
-            }
-        }
-        */
     }
         
     Door *door = make_door(world);
@@ -684,7 +710,8 @@ bool create_menu_world() {
     globals.menu_world = new World();
     init_world(globals.menu_world, v2i(20, 18));
 
-    generate_random_level(globals.menu_world, 20, 18, false);
+    Level_Type level_type = LEVEL_TYPE_BASIC;
+    generate_random_level(globals.menu_world, 20, 18, false, &level_type);
 
     globals.menu_world->camera           = new Camera();
     globals.menu_world->camera->position = globals.menu_world->by_type._Hero->position + v2(VIEW_AREA_WIDTH * 0.5f, VIEW_AREA_HEIGHT * 0.5f);

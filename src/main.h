@@ -129,6 +129,8 @@ struct Global_Variables {
 
     Fade_Transition menu_fade;
 
+    Texture *white_texture     = NULL;
+    
     Texture *full_heart        = NULL;
     Texture *half_heart        = NULL;
     Texture *empty_heart       = NULL;

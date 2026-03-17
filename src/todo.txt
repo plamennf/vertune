@@ -5,8 +5,5 @@ For tomorrow(17.3.2026):
 - Add a variety to the enemies:
   - Maybe they can vary based on the platform type
 
-For update after releasing the game:
-- Add more colors to the game(tiles and enemies)
-
 Door texture:
 - https://www.pixilart.com/art/minecraft-door-texture-d1ebc9e9ea54480

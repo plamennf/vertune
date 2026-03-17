@@ -36,9 +36,18 @@ struct Level_Fade {
     int level_number = 0;
 };
 
-enum Level_Outro_Stage {
-    LEVEL_OUTRO_DOOR_OPENING,
-    LEVEL_OUTRO_HERO_WALKING_THROUGH_DOOR,
+enum Level_Type {
+    LEVEL_TYPE_BASIC,
+    LEVEL_TYPE_OCEAN,
+    LEVEL_TYPE_UNDERWATER,
+    LEVEL_TYPE_VOLCANO,
+    LEVEL_TYPE_COUNT,
+};
+
+struct Cloud {
+    Vector2 position;
+    Vector2 size;
+    float speed_multiplier;
 };
 
 struct World {
@@ -52,11 +61,13 @@ struct World {
     Level_Fade level_fade;
     bool level_intro = true;
     bool level_outro = false;
-    Level_Outro_Stage level_outro_stage = LEVEL_OUTRO_DOOR_OPENING;
+    Level_Type level_type = LEVEL_TYPE_BASIC;
     
     Tilemap *tilemap;
     Camera *camera;
     Particle_System *particle_system;
+
+    eastl::vector <Cloud> clouds_for_ocean_level;
     
     Vector2i size;
 };
