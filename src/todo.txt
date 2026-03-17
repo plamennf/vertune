@@ -1,5 +1,4 @@
 For tomorrow(17.3.2026):
-- Make the level generation way better
 - Add a more interesting background
 - Add a variety to the platforms:
   - Maybe some platforms are normal like the white ones, then we can have some platformers red which give you a health boost/drain your health but give you speed or something or we can have ice platforms.

@@ -40,7 +40,8 @@ void update_world(World *world, float dt) {
     if (!world->level_intro && !camera_intro) {
         for (Enemy *enemy : world->by_type._Enemy) {
             if (enemy->scheduled_for_destruction) continue;
-
+            enemy->num_nanoseconds_since_collision_with_the_hero += (s64)(dt * NS_PER_SECOND);
+            
             update_single_enemy(enemy, dt);
         }
 
@@ -292,8 +293,15 @@ void draw_world(World *world, bool skip_hud) {
     if (!skip_hud) {
         for (Enemy *enemy : world->by_type._Enemy) {
             if (enemy->scheduled_for_destruction) continue;
-            
-            draw_single_enemy(enemy);
+
+            bool camera_intro = false;
+            if (world && world->camera && world->camera->intro_active) camera_intro = true;
+    
+            if (!world->level_intro && !camera_intro) {
+                draw_single_enemy(enemy, false);
+            } else {
+                draw_single_enemy(enemy, true);
+            }
         }
 
         for (Projectile *projectile : world->by_type._Projectile) {

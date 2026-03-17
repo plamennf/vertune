@@ -61,10 +61,13 @@ struct Enemy : public Entity {
 
     float time_since_last_projectile = 0.0f;
     float time_between_projectiles = 3.0f;
+    
+    s64 num_nanoseconds_since_collision_with_the_hero = false;
+    bool has_had_first_flash = false;
 };
 
 void update_single_enemy(Enemy *enemy, float dt);
-void draw_single_enemy(Enemy *enemy);
+void draw_single_enemy(Enemy *enemy, bool disable_eye_flashing);
 
 struct Projectile : public Entity {
     float speed = 5.0f;

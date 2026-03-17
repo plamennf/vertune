@@ -107,6 +107,15 @@ inline Vector2 make_vector2(float x, float y) {
     return result;
 }
 
+inline Vector2 make_vector2(float value) {
+    Vector2 result;
+
+    result.x = value;
+    result.y = value;
+
+    return result;
+}
+
 inline Vector2 operator+(Vector2 a, Vector2 b) {
     Vector2 result;
 

@@ -22,6 +22,8 @@
 
 #include <SDL.h>
 
+#define NS_PER_SECOND 1000000000.0
+
 template <typename T>
 inline T *copy_to_array(eastl::vector <T> const &v) {
     T *result = new T[v.size()];

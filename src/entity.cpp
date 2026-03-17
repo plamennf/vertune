@@ -99,6 +99,8 @@ void update_single_hero(Hero *hero, float dt) {
                 }
                 hero->velocity.x = 0.0f;
                 damage_hero(hero, ENEMY_DAMAGE);
+
+                enemy->num_nanoseconds_since_collision_with_the_hero = 0;
             }
         }
     }
@@ -325,14 +327,78 @@ void update_single_enemy(Enemy *enemy, float dt) {
     }
 }
 
-void draw_single_enemy(Enemy *enemy) {
+void draw_single_enemy(Enemy *enemy, bool disable_eye_flashing) {
     World *world = enemy->world;
     assert(world);
 
-    Vector2 screen_space_position = world_space_to_screen_space(world, enemy->position);
-    Vector2 screen_space_size     = world_space_to_screen_space(world, v2(0, enemy->radius));
+    float eye_radius = enemy->radius * 0.25f;
 
-    immediate_circle(screen_space_position, screen_space_size.y, enemy->color);
+    Vector2 left_eye_position = enemy->position - v2(eye_radius, 0);
+    left_eye_position.y += enemy->radius * 0.25f;
+    
+    Vector2 right_eye_position = left_eye_position + v2(enemy->radius * 0.75f);
+    right_eye_position.y = left_eye_position.y;
+
+    if (enemy->is_facing_right) {
+        left_eye_position.x  += 0.05f * enemy->radius * 2.0f;
+        right_eye_position.x += 0.05f * enemy->radius * 2.0f;
+    } else {
+        left_eye_position.x  -= 0.075f * enemy->radius * 2.0f;
+        right_eye_position.x -= 0.075f * enemy->radius * 2.0f;
+    }
+
+    Vector4 eye_color = v4(1, 1, 1, 1);
+
+    if (!disable_eye_flashing) { // This is true for the intro.
+        Vector4 white     = v4(1.0f, 0, 0, 1);
+        Vector4 red       = v4(0.5f, 0, 0, 1);
+
+        float warning_threshold = enemy->time_between_projectiles * 0.8f;
+        bool is_charging, is_angry_from_colliding, is_cooling_down;
+        if (enemy->has_had_first_flash) {
+            is_charging = enemy->time_since_last_projectile > warning_threshold;
+            is_angry_from_colliding = enemy->num_nanoseconds_since_collision_with_the_hero < (s64)(1.0f * NS_PER_SECOND);
+            is_cooling_down = enemy->time_since_last_projectile < 0.75f;
+        } else {
+            is_charging = enemy->time_since_last_projectile > warning_threshold;
+            is_angry_from_colliding = false;
+            is_cooling_down = false;
+        }
+
+        if (is_charging) {
+            red   = v4(0.5f, 0, 0, 1);
+            white = v4(1, 1, 1, 1);
+
+            float fade_duration = enemy->time_between_projectiles - warning_threshold;
+            float remaining = fade_duration - (enemy->time_between_projectiles - enemy->time_since_last_projectile);
+            
+            float t = remaining / fade_duration;
+            eye_color = lerp(white, red, t);
+            enemy->has_had_first_flash = true;
+        } else if (is_cooling_down || is_angry_from_colliding) {
+            float pulse = (sinf(globals.time_info.real_world_time * 20.0f) * 0.5f) + 0.5f;
+            eye_color = lerp(white, red, pulse);
+            enemy->has_had_first_flash = true;
+        }
+    }
+        
+    {
+        Vector2 screen_space_position = world_space_to_screen_space(world, enemy->position);
+        Vector2 screen_space_size     = world_space_to_screen_space(world, v2(0, enemy->radius));
+        immediate_circle(screen_space_position, screen_space_size.y, enemy->color);
+    }
+    
+    {
+        Vector2 screen_space_position = world_space_to_screen_space(world, left_eye_position);
+        Vector2 screen_space_size     = world_space_to_screen_space(world, v2(0, eye_radius));
+        immediate_circle(screen_space_position, screen_space_size.y, eye_color);
+    }
+
+    {
+        Vector2 screen_space_position = world_space_to_screen_space(world, right_eye_position);
+        Vector2 screen_space_size     = world_space_to_screen_space(world, v2(0, eye_radius));
+        immediate_circle(screen_space_position, screen_space_size.y, eye_color);
+    }
 }
 
 void update_single_projectile(Projectile *projectile, float dt) {

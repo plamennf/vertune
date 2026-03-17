@@ -21,8 +21,6 @@
 #endif
 #include <stdio.h>
 
-#define NS_PER_SECOND 1000000000.0
-
 Global_Variables globals;
 
 char *fail_msgs[] = {
@@ -563,66 +561,94 @@ static void generate_random_level(World *world, int level_width, int level_heigh
     if (create_lights) {
         Light *start_light = make_light(world);
         start_light->position  = v2(hero->position.x, hero->position.y + 5.0f);
-        start_light->color     = v4(0.8f, 0.9f, 1.0f, 1.0f);
-        start_light->radius    = 12.0f;
-        start_light->intensity = 1.0f;
+        start_light->color     = v4(0.4f, 0.6f, 1.0f, 1.0f);
+        start_light->radius    = 13.0f;
+        start_light->intensity = 0.8f;
     }
         
     for (int i = 0; i < platforms.size() - 1; i++) {
-        Platform plat = platforms[i];
-        int num_coins = 1 + rand() % 2;
+        Platform platform = platforms[i];
+        int platform_width = platform.x_end - platform.x_start;
 
+        if (create_lights) {
+            Light *platform_light     = make_light(world);
+            platform_light->position  = v2((platform.x_start + platform.x_end) * 0.5f, platform.y + 10.0f);
+            platform_light->color     = v4(1.0f, 0.9f, 0.7f, 1.0f);
+            platform_light->radius    = 18.0f;
+            platform_light->intensity = 0.6f;
+        }
+        
+        eastl::vector<bool> slots_occupied(platform_width + 1, false);
+
+        int max_features = platform_width > 5 ? 2 : 1;
+        int features_spawned = 0;
+        int attempts = 0;
+        
+        while (features_spawned < max_features && attempts < 10) {
+            attempts++;
+
+            int slot = 1 + (rand() % Max(1, platform_width - 1));
+            if (slots_occupied[slot]) continue;
+
+            float spawn_x = platform.x_start + slot + 0.5f;
+            bool is_combo = (rand() % 2 == 0);
+            if (is_combo) {
+                Enemy *enemy    = make_enemy(world);
+                enemy->position = v2(spawn_x, platform.y + 1.5f);
+                enemy->color    = v4(0, 0, 1, 1);
+                enemy->radius   = 0.5f;
+
+                float coin_y = platform.y + max_jump_height + 3.0f + rand() % 2;
+
+                Pickup *pickup   = make_pickup(world);
+                pickup->position = v2(spawn_x, coin_y);
+                pickup->color    = v4(1, 1, 0, 1);
+                pickup->radius   = 0.25f;
+
+                if (create_lights) {
+                    Light *light       = make_light(world);
+                    light->position    = pickup->position;
+                    light->color       = v4(1, 0.8f, 0, 1);
+                    light->radius      = 1.5f;
+                    light->intensity   = 1.5f;
+                    light->should_draw = false;
+                    pickup->light_id   = light->id;
+                }
+            } else {
+                Pickup *pickup   = make_pickup(world);
+                pickup->position = v2(spawn_x, platform.y + 2.5f);
+                pickup->color    = v4(1, 1, 0, 1);
+                pickup->radius   = 0.25f;
+
+                if (create_lights) {
+                    Light *light       = make_light(world);
+                    light->position    = pickup->position;
+                    light->color       = v4(1, 0.8f, 0, 1);
+                    light->radius      = 1.5f;
+                    light->intensity   = 1.5f;
+                    light->should_draw = false;
+                    pickup->light_id   = light->id;
+                }
+            }
+
+            slots_occupied[slot] = true;
+            if (slot > 0)              slots_occupied[slot - 1] = true;
+            if (slot < platform_width) slots_occupied[slot + 1] = true;
+
+            features_spawned++;
+        }
+
+        /*
         if (create_lights) {
             if (i % 3 == 0 && i != 0) {
                 Light *light = make_light(world);
-                light->position  = v2((plat.x_start + plat.x_end) * 0.5f, (float)level_height - 5.0f);
+                light->position  = v2((platform.x_start + platform.x_end) * 0.5f, (float)level_height - 5.0f);
                 light->color     = v4(1.0f, 1.0f, 0.8f, 1.0f);
                 light->radius    = 25.0f;
-                light->intensity = 0.8f;            
+                light->intensity = 1.2f;
             }
         }
-            
-        for (int c = 0; c < num_coins; c++) {
-            float coin_x = plat.x_start + 0.5f + rand() % (plat.x_end - plat.x_start + 1);
-            float coin_y = plat.y + 2.5f;
-
-            bool boost_coin = (rand() % 3 == 0);
-            if (boost_coin) {
-                coin_y = plat.y + max_jump_height + 3.0f + rand() % 2;
-
-                bool enemy_found = false;
-                for (int i = 0; i < world->by_type._Enemy.size(); i++) {
-                    Enemy *enemy = world->by_type._Enemy[i];
-                    if (length(enemy->position - v2(coin_x, plat.y + 1.5f)) < 0.5f) {
-                        enemy_found = true;
-                        break;
-                    }
-                }
-
-                //if (!enemy_found) {
-                    Enemy *enemy    = make_enemy(world);
-                    enemy->position = v2(coin_x, plat.y + 1.5f);
-                    enemy->color    = v4(0, 0, 1, 1);
-                    enemy->radius   = 0.5f;
-                    //}
-            }
-
-            Pickup *pickup = make_pickup(world);
-            pickup->position = v2(coin_x, coin_y);
-            pickup->color    = v4(1, 1, 0, 1);
-            pickup->radius   = 0.25f;
-
-            if (create_lights) {
-                Light *light       = make_light(world);
-                light->position    = v2(coin_x, coin_y);
-                light->color       = v4(1, 1, 0, 1);
-                light->radius      = 0.5f;
-                light->intensity   = 1.0f;
-                light->should_draw = false;
-
-                pickup->light_id = light->id;
-            }
-        }
+        */
     }
         
     Door *door = make_door(world);
@@ -633,9 +659,9 @@ static void generate_random_level(World *world, int level_width, int level_heigh
     if (create_lights) {
         Light *door_light = make_light(world);
         door_light->position  = v2(door->position.x, door->position.y + door->size.y + 2.0f);
-        door_light->color     = v4(1.0f, 0.2f, 0.2f, 1.0f);
-        door_light->radius    = 8.0f;
-        door_light->intensity = 1.2f;
+        door_light->color     = v4(1.0f, 0.1f, 0.1f, 1.0f);
+        door_light->radius    = 12.0f;
+        door_light->intensity = 2.0f;
 
         door->light_id = door_light->id;
     }
@@ -717,6 +743,7 @@ bool switch_to_random_world(int total_width) {
 
     if (globals.copy_of_current_world) {
         destroy_world(globals.copy_of_current_world);
+        delete globals.copy_of_current_world;
         globals.copy_of_current_world = NULL;
     }
     globals.copy_of_current_world = copy_world(globals.current_world);
@@ -749,6 +776,8 @@ bool restart_current_world() {
 
     if (globals.copy_of_current_world) {
         destroy_world(globals.current_world);
+        delete globals.current_world;
+        globals.current_world = NULL;
     }
     globals.current_world = copy_world(globals.copy_of_current_world);
     
@@ -1016,10 +1045,21 @@ static void main_loop() {
 #ifndef __EMSCRIPTEN__
     s64 fps_cap_nanoseconds = 1000000000 / globals.time_info.fps_cap;
 
-    while (get_time_nanoseconds() <= globals.time_info.sync_last_time + fps_cap_nanoseconds) {
-        // @TODO: Maybe sleep.
+    s64 now_time = get_time_nanoseconds();
+    s64 target_time = globals.time_info.sync_last_time + fps_cap_nanoseconds;
+    s64 time_to_sleep = target_time - now_time;
+    if (time_to_sleep <= 0) {
+        globals.time_info.sync_last_time = now_time;
+    } else if (time_to_sleep > NS_PER_SECOND) {
+        globals.time_info.sync_last_time = now_time;
+    } else {
+        s64 safety_counter = 0;
+        while (get_time_nanoseconds() < target_time) {
+            safety_counter++;
+            if (safety_counter > NS_PER_SECOND) break;
+        }
+        globals.time_info.sync_last_time = target_time;
     }
-    globals.time_info.sync_last_time += fps_cap_nanoseconds;
 #endif
 
 #ifndef __EMSCRIPTEN__
@@ -1167,7 +1207,9 @@ void update_menu_fade(float dt) {
             play_sound(globals.menu_background_music);
             
             destroy_world(globals.current_world);
+            delete globals.current_world;
             destroy_world(globals.copy_of_current_world);
+            delete globals.copy_of_current_world;
             globals.copy_of_current_world = NULL;
             globals.current_world = globals.menu_world;
             globals.num_restarts_for_current_world = 0;
