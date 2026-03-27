@@ -1106,7 +1106,7 @@ int main(int argc, char *argv[]) {
     void enable_dpi_awareness();
     enable_dpi_awareness();
 #endif
-
+    
     globals.frame_memory.init(Megabytes(32));
     
     init_log();
