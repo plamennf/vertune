@@ -81,7 +81,7 @@ bool load_shader(Shader *shader, char *source, char *debug_name);
 void set_shader(Shader *shader);
 Shader *get_current_shader();
 void refresh_transform();
-void refresh_lighting(Light lights[MAX_LIGHTS], int num_lights, eastl::vector <Vector4> const &occluders);
+void refresh_lighting(Light lights[MAX_LIGHTS], int num_lights, std::vector <Vector4> const &occluders);
 
 void rendering_2d(int width, int height);
 void rendering_2d(int width, int height, Matrix4 world_to_view_matrix);

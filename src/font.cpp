@@ -12,8 +12,8 @@ static bool fonts_initted;
 
 static Memory_Arena glyph_and_page_arena;
 
-static eastl::vector <Loaded_Font *> loaded_fonts;
-static eastl::vector <Dynamic_Font *> dynamic_fonts;
+static std::vector <Loaded_Font *> loaded_fonts;
+static std::vector <Dynamic_Font *> dynamic_fonts;
 
 static int font_page_size_x;
 static int font_page_size_y;
@@ -34,7 +34,7 @@ static void ensure_fonts_initted() {
 }
 
 static Loaded_Font *get_loaded_font(char *name) {
-    for (int i = 0; i < loaded_fonts.size(); i++) {
+    for (u32 i = 0; i < loaded_fonts.size(); i++) {
         Loaded_Font *font = loaded_fonts[i];
         if (strings_match(font->name, name)) return font;
     }
@@ -69,7 +69,7 @@ static Loaded_Font *get_loaded_font(char *name) {
 
 #ifdef USE_PACKAGE
 static Loaded_Font *get_loaded_font_from_package(char *name) {
-    for (int i = 0; i < loaded_fonts.count; i++) {
+    for (u32 i = 0; i < loaded_fonts.size(); i++) {
         Loaded_Font *font = loaded_fonts[i];
         if (strings_match(font->name, name)) return font;
     }
@@ -242,7 +242,7 @@ void Dynamic_Font::generate_font_quads(char *text, int x, int y) {
 }
 
 Dynamic_Font *get_font_at_size(char *name, int size) {
-    for (int i = 0; i < dynamic_fonts.size(); i++) {
+    for (u32 i = 0; i < dynamic_fonts.size(); i++) {
         Dynamic_Font *font = dynamic_fonts[i];
         if (strings_match(font->name, name) && font->character_height == size) return font;
     }

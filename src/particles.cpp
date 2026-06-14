@@ -4,7 +4,7 @@
 #include "world.h"
 
 void update_particles(Particle_System *system, float dt) {
-    for (int i = 0; i < system->particles.size();) {
+    for (u32 i = 0; i < system->particles.size();) {
         Particle *particle = &system->particles[i];
         particle->age += dt;
         particle->position += particle->velocity * dt;

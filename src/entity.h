@@ -39,6 +39,8 @@ enum Hero_State {
     HERO_STATE_MOVING,
 };
 
+const int MAX_HERO_INVINCIBILITY_FRAMES = 120;
+
 struct Hero : public Entity {
     Hero_State state = HERO_STATE_IDLE;
     Vector2 velocity = v2(0, 0);
@@ -47,6 +49,7 @@ struct Hero : public Entity {
     double health = 3.0;
     int num_pickups = 0;
     float coin_flash_timer = 0.0f;
+    int num_invincibility_frames = 0;
 };
 
 void update_single_hero(Hero *hero, float dt);

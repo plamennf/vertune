@@ -478,7 +478,7 @@ static void draw_settings() {
         x = (int)(0.005f * globals.render_width);
         draw_text(font, text, x, cursor_y, v4(1, 1, 1, 1));
 
-        text = globals.draw_debug_hud ? "Yes" : "No";
+        text = globals.draw_debug_hud ? (char *)"Yes" : (char *)"No";
 
         x = (int)(globals.render_width * 0.45f);
         
@@ -497,7 +497,7 @@ static void draw_settings() {
         x = (int)(0.005f * globals.render_width);
         draw_text(font, text, x, cursor_y, v4(1, 1, 1, 1));
 
-        text = globals.enable_lighting ? "Yes" : "No";
+        text = globals.enable_lighting ? (char *)"Yes" : (char *)"No";
 
         x = (int)(globals.render_width * 0.45f);
         
@@ -516,7 +516,7 @@ static void draw_settings() {
         x = (int)(0.005f * globals.render_width);
         draw_text(font, text, x, cursor_y, v4(1, 1, 1, 1));
 
-        text = globals.hard_mode_enabled ? "Yes" : "No";
+        text = globals.hard_mode_enabled ? (char *)"Yes" : (char *)"No";
 
         x = (int)(globals.render_width * 0.45f);
         
@@ -535,7 +535,7 @@ static void draw_settings() {
         x = (int)(0.005f * globals.render_width);
         draw_text(font, text, x, cursor_y, v4(1, 1, 1, 1));
 
-        text = globals.draw_outlines ? "Yes" : "No";
+        text = globals.draw_outlines ? (char *)"Yes" : (char *)"No";
 
         x = (int)(globals.render_width * 0.45f);
         
@@ -598,7 +598,7 @@ rendering_2d(globals.render_width, globals.render_height, draw_y_offset_for_high
         cutoff_bottom_y = (int)(globals.render_height * 0.1f);
     }
     
-    for (int i = 0; i < globals.highscores.size(); i++) {
+    for (u32 i = 0; i < globals.highscores.size(); i++) {
         Highscore hiscore = globals.highscores[i];
         
         float actual_y_on_screen = (float)cursor_y + draw_y_offset_for_highscores_due_to_scrolling;

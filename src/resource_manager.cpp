@@ -17,8 +17,8 @@ struct Resource_Info {
     T *data;
 };
 
-static eastl::unordered_map <eastl::string, Resource_Info <Texture>> loaded_textures;
-static eastl::unordered_map <eastl::string, Resource_Info <Sound>> loaded_sounds;
+static std::unordered_map <std::string, Resource_Info <Texture>> loaded_textures;
+static std::unordered_map <std::string, Resource_Info <Sound>> loaded_sounds;
 
 Texture *find_or_load_texture(char *name) {
     auto it = loaded_textures.find(name);

@@ -3,12 +3,12 @@
 
 static SDL_AudioDeviceID audio_device;
 
-static eastl::vector <Sound *> current_sounds;
+static std::vector <Sound *> current_sounds;
 
 static void SDLCALL audio_callback(void *userdata, Uint8 *stream, int len) {
     SDL_memset(stream, 0, len);
 
-    for (int i = 0; i < current_sounds.size(); i++) {
+    for (u32 i = 0; i < current_sounds.size(); i++) {
         Sound *sound = current_sounds[i];
         if (!sound || !sound->playing)
             continue;
@@ -185,7 +185,7 @@ void play_sound(Sound *sound) {
     }
     
     SDL_LockAudioDevice(audio_device);
-    for (int i = 0; i < current_sounds.size(); i++) {
+    for (u32 i = 0; i < current_sounds.size(); i++) {
         if (current_sounds[i] == sound) {
             SDL_UnlockAudioDevice(audio_device);
             return;

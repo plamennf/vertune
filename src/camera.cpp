@@ -12,14 +12,13 @@ void update_camera(Camera *camera, World *world, float dt) {
             camera->intro_active = false;
         }
 
-        // Smooth interpolation (ease out)
         float smooth_t = t * t * (3.0f - 2.0f * t);
 
         camera->position = lerp(camera->intro_start_pos, camera->intro_end_pos, smooth_t);
 
         float zoom_t = powf(smooth_t, 0.7f);
         camera->zoom     = lerp(camera->intro_start_zoom, camera->intro_end_zoom, smooth_t);
-        return; // Skip normal camera logic while intro is active
+        return;
     }
     
     Entity *e = get_entity_by_id(world, camera->following_id);
@@ -42,7 +41,7 @@ void update_camera(Camera *camera, World *world, float dt) {
 
     Vector2 half_size = v2((float)VIEW_AREA_WIDTH * 0.5f, (float)VIEW_AREA_HEIGHT * 0.5f);
     clamp(&camera->target.x, half_size.x, world->size.x - half_size.x);
-    clamp(&camera->target.y, half_size.y, world->size.y - half_size.y);
+    clamp(&camera->target.y, half_size.y, world->size.y - half_size.y + 5.0f);
 
     float acceleration = 3.0f;
     float min_speed = 0.5f;
@@ -56,6 +55,8 @@ void update_camera(Camera *camera, World *world, float dt) {
         clamp(&speed, min_speed, max_speed);
         
         camera->position += direction * speed * dt;
+    } else {
+        camera->position = camera->target;
     }
 }
 

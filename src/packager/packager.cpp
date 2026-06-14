@@ -1,7 +1,7 @@
 #include "../general.h"
 #include "../geometry.h"
-#include <eastl/vector.h>
-#include <eastl/unordered_map.h>
+#include <vector>
+#include <unordered_map>
 #include "packager.h"
 
 #include <stdio.h>
@@ -78,7 +78,7 @@ bool create_package() {
         "data/sounds/menu-select.wav",
     };
 
-    eastl::vector<Span> loaded_files;
+    std::vector<Span> loaded_files;
     for (int i = 0; i < ArrayCount(files_to_include); i++) {
         Span span = my_read_entire_file(files_to_include[i]);
         if (span.size <= 0 || span.data == NULL) {

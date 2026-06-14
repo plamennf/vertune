@@ -21,8 +21,6 @@
 #endif
 #include <stdio.h>
 
-#include <eastl/sort.h>
-
 Global_Variables globals;
 
 char *fail_msgs[] = {
@@ -344,9 +342,6 @@ static void load_assets() {
     
     globals.restart_available = find_or_load_texture("restart_available");
     if (!globals.restart_available) globals.restart_available = globals.white_texture;
-
-    globals.door_texture = find_or_load_texture("door");
-    if (!globals.door_texture) globals.door_texture = globals.white_texture;
     
     globals.menu_background_music = find_or_load_sound("menu-music", true);
     globals.level_background_music = find_or_load_sound("level-music", true);
@@ -467,49 +462,13 @@ static void respond_to_input() {
     }
 }
 
-static void generate_random_level(World *world, int level_width, int level_height, bool create_lights = true, Level_Type *override_level_type = NULL) {
+static void generate_random_level(World *world, int level_width, int level_height, bool create_lights = true) {
     MyZoneScoped;
     
     if (!world) return;
 
     if (!world->tilemap) {
         world->tilemap = new Tilemap();
-    }
-
-    int level_type = rand() % LEVEL_TYPE_COUNT;
-    world->level_type = (Level_Type)level_type;
-
-    if (override_level_type) {
-        world->level_type = *override_level_type;
-    }
-
-    if (world->level_type == LEVEL_TYPE_OCEAN) {
-        int num_clouds = 3 + (rand() % 3);
-
-        for (int i = 0; i < num_clouds; i++) {
-            float rx = (float)(rand() % 100) / 100.0f;
-            float ry = 0.7f + ((float)(rand() % 30) / 100.0f);
-            float rs = 0.5f + ((float)(rand() % 100) / 100.0f);
-            float ra = 0.6f + ((float)(rand() % 40) / 100.0f);
-
-            Vector2 base_size  = v2(2.0f * (16.0f/9.0f), 2.0f);
-            Vector2 final_size = base_size * rs;
-
-            Vector2 world_position = v2(VIEW_AREA_WIDTH * rx, VIEW_AREA_HEIGHT * ry);
-            float speed_multiplier = rs * 0.8f;
-
-            Cloud cloud;
-
-            cloud.position         = world_position;
-            cloud.size             = final_size;
-            cloud.speed_multiplier = speed_multiplier;
-            
-            world->clouds_for_ocean_level.push_back(cloud);
-        }
-
-        eastl::sort(world->clouds_for_ocean_level.begin(), world->clouds_for_ocean_level.end(), [](Cloud const &a, Cloud const &b) {
-            return a.speed_multiplier < b.speed_multiplier;
-        });
     }
         
     Tilemap *tilemap = world->tilemap;
@@ -539,7 +498,7 @@ static void generate_random_level(World *world, int level_width, int level_heigh
         int x_end;
         int y;
     };
-    eastl::vector <Platform> platforms;
+    std::vector <Platform> platforms;
 
     int last_x = 1;
     int last_y = 2;
@@ -613,7 +572,7 @@ static void generate_random_level(World *world, int level_width, int level_heigh
         start_light->intensity = 0.8f;
     }
         
-    for (int i = 0; i < platforms.size() - 1; i++) {
+    for (u32 i = 0; i < platforms.size() - 1; i++) {
         Platform platform = platforms[i];
         int platform_width = platform.x_end - platform.x_start;
 
@@ -625,7 +584,7 @@ static void generate_random_level(World *world, int level_width, int level_heigh
             platform_light->intensity = 0.6f;
         }
         
-        eastl::vector<bool> slots_occupied(platform_width + 1, false);
+        std::vector<bool> slots_occupied(platform_width + 1, false);
 
         int max_features = platform_width > 5 ? 2 : 1;
         int features_spawned = 0;
@@ -710,8 +669,7 @@ bool create_menu_world() {
     globals.menu_world = new World();
     init_world(globals.menu_world, v2i(20, 18));
 
-    Level_Type level_type = LEVEL_TYPE_BASIC;
-    generate_random_level(globals.menu_world, 20, 18, false, &level_type);
+    generate_random_level(globals.menu_world, 20, 18, false);
 
     globals.menu_world->camera           = new Camera();
     globals.menu_world->camera->position = globals.menu_world->by_type._Hero->position + v2(VIEW_AREA_WIDTH * 0.5f, VIEW_AREA_HEIGHT * 0.5f);
@@ -800,6 +758,7 @@ bool restart_current_world() {
         globals.program_mode = PROGRAM_MODE_END;
         globals.current_fail_msg_index = rand() % ArrayCount(fail_msgs);
 
+#ifndef __EMSCRIPTEN__
         Highscore highscore;
         highscore.time                 = get_local_time();
         highscore.num_levels_completed = globals.num_worlds_completed;
@@ -807,6 +766,8 @@ bool restart_current_world() {
         
         globals.highscores.push_back(highscore);
         play_sound(globals.level_fail_sfx);
+#endif
+        
         return true;
     }
 
@@ -1393,14 +1354,14 @@ bool save_highscores() {
     fwrite(&HIGHSCORE_FILE_VERSION, sizeof(int), 1, file);
 
     int highscores_size = 0;
-    for (int i = 0; i < globals.highscores.size(); i++) {
+    for (u32 i = 0; i < globals.highscores.size(); i++) {
         if (globals.highscores[i].num_levels_completed > 0) {
             highscores_size++;
         }
     }
     
     fwrite(&highscores_size, sizeof(int), 1, file);
-    for (int i = 0; i < globals.highscores.size(); i++) {
+    for (u32 i = 0; i < globals.highscores.size(); i++) {
         if (globals.highscores[i].num_levels_completed > 0) {
             Highscore highscore = globals.highscores[i];
 

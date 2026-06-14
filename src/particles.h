@@ -12,7 +12,7 @@ struct Particle {
 };
 
 struct Particle_System {
-    eastl::vector <Particle> particles;
+    std::vector <Particle> particles;
 };
 
 void update_particles(Particle_System *system, float dt);

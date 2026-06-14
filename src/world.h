@@ -23,10 +23,10 @@ struct Particle_System;
 struct Entities_By_Type {
     Hero *_Hero = NULL;
     Door *_Door = NULL;
-    eastl::vector <Enemy *> _Enemy;
-    eastl::vector <Projectile *> _Projectile;
-    eastl::vector <Pickup *> _Pickup;
-    eastl::vector <Light *> _Light;
+    std::vector <Enemy *> _Enemy;
+    std::vector <Projectile *> _Projectile;
+    std::vector <Pickup *> _Pickup;
+    std::vector <Light *> _Light;
 };
 
 struct Level_Fade {
@@ -36,38 +36,21 @@ struct Level_Fade {
     int level_number = 0;
 };
 
-enum Level_Type {
-    LEVEL_TYPE_BASIC,
-    LEVEL_TYPE_OCEAN,
-    LEVEL_TYPE_UNDERWATER,
-    LEVEL_TYPE_VOLCANO,
-    LEVEL_TYPE_COUNT,
-};
-
-struct Cloud {
-    Vector2 position;
-    Vector2 size;
-    float speed_multiplier;
-};
-
 struct World {
     Entities_By_Type by_type;
-    eastl::unordered_map <u64, Entity *> entity_lookup;
-    eastl::vector <Entity *> all_entities;
+    std::unordered_map <u64, Entity *> entity_lookup;
+    std::vector <Entity *> all_entities;
 
-    eastl::vector <Entity *> entities_to_be_destroyed;
+    std::vector <Entity *> entities_to_be_destroyed;
     
     int num_pickups_needed_to_unlock_door = 0;
     Level_Fade level_fade;
     bool level_intro = true;
     bool level_outro = false;
-    Level_Type level_type = LEVEL_TYPE_BASIC;
     
     Tilemap *tilemap;
     Camera *camera;
     Particle_System *particle_system;
-
-    eastl::vector <Cloud> clouds_for_ocean_level;
     
     Vector2i size;
 };

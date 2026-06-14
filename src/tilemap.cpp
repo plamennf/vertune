@@ -56,8 +56,8 @@ bool load_tilemap(Tilemap *tilemap, char *filepath) {
         return false;
     }
 
-    eastl::vector <Vector4> colors;
-    eastl::vector <u8> collidable_ids;
+    std::vector <Vector4> colors;
+    std::vector <u8> collidable_ids;
     for (;;) {
         line = consume_next_line(&handler);
         if (!line) {
@@ -102,7 +102,7 @@ bool load_tilemap(Tilemap *tilemap, char *filepath) {
         }
     }
 
-    eastl::vector <char *> lines;
+    std::vector <char *> lines;
     lines.resize(height);
     for (int i = 0; i < height; i++) {
         lines[i] = consume_next_line(&handler);

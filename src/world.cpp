@@ -224,7 +224,7 @@ static void find_closest_lights(World *world, Vector2 position, Light lights[MAX
     }
 }
 
-static void get_merged_occluders(eastl::vector <Vector4> &merged, World *world, Vector2 hero_pos, float search_radius) {
+static void get_merged_occluders(std::vector <Vector4> &merged, World *world, Vector2 hero_pos, float search_radius) {
     Tilemap *tm = world->tilemap;
     
     int x_min = Max(0, (int)(hero_pos.x - search_radius));
@@ -273,73 +273,6 @@ void draw_world(World *world, bool skip_hud) {
     set_cull_mode(CULL_MODE_OFF);
     set_depth_test_mode(DEPTH_TEST_OFF);
     
-    switch (world->level_type) {
-        case LEVEL_TYPE_BASIC: {
-
-        } break;
-
-        case LEVEL_TYPE_OCEAN: {
-            Texture *ocean = find_or_load_texture("ocean");
-            if (!ocean) ocean = globals.white_texture;
-
-            Texture *cloud = find_or_load_texture("ocean/3");
-            if (!cloud) cloud = globals.white_texture;
-
-            set_shader(globals.shader_texture);
-            set_texture(0, ocean);
-
-            float real_world_time = (float)nanoseconds_to_seconds(globals.time_info.real_world_time);
-            
-            float ocean_bob = sinf(real_world_time * 0.8f) * 0.2f;
-            
-            Vector2 ocean_size     = world_space_to_screen_space(world, v2(VIEW_AREA_WIDTH, VIEW_AREA_HEIGHT));
-            Vector2 ocean_position = world_space_to_screen_space(world, v2(0, ocean_bob));
-            immediate_quad(ocean_position, ocean_size, v4(1, 1, 1, 1));
-            immediate_flush();
-            
-            set_texture(0, cloud);
-
-            for (int i = 0; i < world->clouds_for_ocean_level.size(); i++) {
-                Cloud cloud = world->clouds_for_ocean_level[i];
-
-                float speed    = cloud.speed_multiplier;
-                float x_offset = real_world_time * speed;
-
-                float cloud_parallax  = 1.0f - (speed * 0.2f);
-                float camera_offset_x = world->camera->position.x * cloud_parallax;
-                
-                float world_x   = cloud.position.x + x_offset - camera_offset_x;
-                float wrapped_x = fmodf(world_x, VIEW_AREA_WIDTH + 4.0f) - 2.0f;
-
-                Vector2 cloud_size = cloud.size;
-
-                Vector2 screen_position = world_space_to_screen_space(world, v2(wrapped_x, cloud.position.y));
-                Vector2 screen_size = world_space_to_screen_space(world, cloud_size);
-
-                float alpha = 0.7f + (sinf((float)(real_world_time + i)) * 0.2f);
-                immediate_quad(screen_position - (screen_size * 0.5f), screen_size, v4(1, 1, 1, alpha));
-            }
-            
-            immediate_flush();
-
-
-            set_shader(globals.shader_color);
-
-            float frame_thickness = 0.8f;
-            Vector4 wall_color = v4(0.05f, 0.05f, 0.07f, 1.0f);
-            
-            immediate_quad(world_space_to_screen_space(world, v2(0, 0)), world_space_to_screen_space(world, v2(frame_thickness, (float)VIEW_AREA_HEIGHT)), wall_color);
-            immediate_quad(world_space_to_screen_space(world, v2((float)VIEW_AREA_WIDTH - frame_thickness, 0)), world_space_to_screen_space(world, v2(frame_thickness, (float)VIEW_AREA_HEIGHT)), wall_color);
-            immediate_quad(world_space_to_screen_space(world, v2(0, (float)VIEW_AREA_HEIGHT - frame_thickness)), world_space_to_screen_space(world, v2((float)VIEW_AREA_WIDTH, frame_thickness)), wall_color);
-
-            float bar_x = VIEW_AREA_WIDTH * 0.33f;
-            immediate_quad(world_space_to_screen_space(world, v2(bar_x, 0)), world_space_to_screen_space(world, v2(0.2f, VIEW_AREA_HEIGHT)), v4(0.05f, 0.05f, 0.05f, 1.0f));
-            immediate_quad(world_space_to_screen_space(world, v2(bar_x * 2.0f, 0)), world_space_to_screen_space(world, v2(0.2f, VIEW_AREA_HEIGHT)), v4(0.05f, 0.05f, 0.05f, 1.0f));
-            
-            immediate_flush();
-        } break;
-    }
-
     rendering_2d(globals.render_width, globals.render_height, get_world_to_view_matrix(world->camera, world));
     
     bool use_lighting = world->by_type._Light.size() > 0 && globals.enable_lighting;
@@ -366,7 +299,7 @@ void draw_world(World *world, bool skip_hud) {
         num_closest_lights = Min(MAX_LIGHTS, num_closest_lights);
         find_closest_lights(world, hero_position, closest_lights, num_closest_lights);
 
-        eastl::vector <Vector4> active_occluders;
+        std::vector <Vector4> active_occluders;
         get_merged_occluders(active_occluders, world, hero_position, 50.0f);
         
         refresh_lighting(closest_lights, num_closest_lights, active_occluders);
@@ -554,7 +487,7 @@ void destroy_world(World *world) {
 
     world->entities_to_be_destroyed.clear();
 
-    for (int i = 0; i < world->all_entities.size(); i++) {
+    for (u32 i = 0; i < world->all_entities.size(); i++) {
         delete world->all_entities[i];
         world->all_entities[i] = NULL;
     }
@@ -610,12 +543,6 @@ World *copy_world(World *world) {
     result->num_pickups_needed_to_unlock_door = world->num_pickups_needed_to_unlock_door;
     result->level_fade = world->level_fade;
     result->level_intro = world->level_intro;
-    result->level_type  = world->level_type;
-
-    result->clouds_for_ocean_level.resize(world->clouds_for_ocean_level.size());
-    for (int i = 0; i < result->clouds_for_ocean_level.size(); i++) {
-        result->clouds_for_ocean_level[i] = world->clouds_for_ocean_level[i];
-    }
 
     if (world->tilemap) {
         result->tilemap = copy_tilemap(world->tilemap);
@@ -702,7 +629,7 @@ void do_entity_destruction(World *world) {
         for (Entity *e : world->entities_to_be_destroyed) {
             if (e == NULL) continue;
 
-            auto it = eastl::find(world->all_entities.begin(), world->all_entities.end(), e);
+            auto it = std::find(world->all_entities.begin(), world->all_entities.end(), e);
             if (it != world->all_entities.end()) {
                 world->all_entities.erase(it);
             }
@@ -716,25 +643,25 @@ void do_entity_destruction(World *world) {
 
                 case ENTITY_TYPE_ENEMY: {
                     auto &enemies = world->by_type._Enemy;
-                    auto it = eastl::find(enemies.begin(), enemies.end(), (Enemy *)e);
+                    auto it = std::find(enemies.begin(), enemies.end(), (Enemy *)e);
                     if (it != enemies.end()) enemies.erase(it);
                 } break;
 
                 case ENTITY_TYPE_PROJECTILE: {
                     auto &projectiles = world->by_type._Projectile;
-                    auto it = eastl::find(projectiles.begin(), projectiles.end(), (Projectile *)e);
+                    auto it = std::find(projectiles.begin(), projectiles.end(), (Projectile *)e);
                     if (it != projectiles.end()) projectiles.erase(it);
                 } break;
 
                 case ENTITY_TYPE_PICKUP: {
                     auto &pickups = world->by_type._Pickup;
-                    auto it = eastl::find(pickups.begin(), pickups.end(), (Pickup *)e);
+                    auto it = std::find(pickups.begin(), pickups.end(), (Pickup *)e);
                     if (it != pickups.end()) pickups.erase(it);
                 } break;
 
                 case ENTITY_TYPE_LIGHT: {
                     auto &lights = world->by_type._Light;
-                    auto it = eastl::find(lights.begin(), lights.end(), (Light *)e);
+                    auto it = std::find(lights.begin(), lights.end(), (Light *)e);
                     if (it != lights.end()) lights.erase(it);
                 } break;
                     

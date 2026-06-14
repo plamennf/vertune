@@ -597,7 +597,7 @@ void refresh_transform() {
     }
 }
 
-void refresh_lighting(Light lights[MAX_LIGHTS], int num_lights, eastl::vector <Vector4> const &occluders) {
+void refresh_lighting(Light lights[MAX_LIGHTS], int num_lights, std::vector <Vector4> const &occluders) {
     Shader *shader = current_shader;
     if (!shader) return;
 
@@ -615,7 +615,7 @@ void refresh_lighting(Light lights[MAX_LIGHTS], int num_lights, eastl::vector <V
         }
     }
     
-    for (int i = 0; i < occluders.size(); i++) {
+    for (u32 i = 0; i < occluders.size(); i++) {
         glUniform4f(shader->u_occluders[i], occluders[i].x, occluders[i].y, occluders[i].z, occluders[i].w);
     }
 

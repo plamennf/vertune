@@ -40,8 +40,8 @@ char *copy_string(char *s) {
     if (!s) return NULL;
 
     s64 len = string_length(s);
-    char *result = new char[len + 1];
-    memcpy(result, s, len + 1);
+    char *result = new char[(int)len + 1];
+    memcpy(result, s, (int)len + 1);
     return result;
 }
 
@@ -521,12 +521,12 @@ s64 get_time_nanoseconds() {
     return (s64)((perf_counter.QuadPart * 1000000000ULL) / (global_perf_freq.QuadPart ? global_perf_freq.QuadPart : 1));
 }
 
-#endif
+#else
 
-/*
 s64 get_time_nanoseconds() {
     Uint64 counter = SDL_GetPerformanceCounter();
     Uint64 freq = SDL_GetPerformanceFrequency();
-    return (Uint64)((counter * 1000000000ULL) / freq);
+    return (Uint64)((counter * 1000000000ULL) / (freq > 0 ? freq : 1));
 }
-*/
+
+#endif

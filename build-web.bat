@@ -3,7 +3,7 @@
 if not exist build mkdir build
 pushd build
 
-cl /Oi /fp:fast /fp:except- /Zi /FC /nologo /W3 /I ..\external\include /std:c++20 /Zc:strictStrings- /EHsc- /O2 /Ob2 /MT /D_CRT_SECURE_NO_WARNINGS /DNDEBUG /DBUILD_RELEASE /DUSE_PACKAGE /DSTB_IMAGE_IMPLEMENTATION /DPACKAGER_STANDALONE  /Fe:"packager" ..\src\general.cpp ..\src\packager\packager.cpp /link /opt:ref /incremental:no /LIBPATH:"..\external\lib" /subsystem:console SDL2.lib SDL2main.lib shell32.lib
+cl /Oi /fp:fast /fp:except- /Zi /FC /nologo /W3 /I ..\external\include /std:c++20 /Zc:strictStrings- /EHsc- /O2 /Ob2 /MT /D_CRT_SECURE_NO_WARNINGS /DNDEBUG /DBUILD_RELEASE /DUSE_PACKAGE /DSTB_IMAGE_IMPLEMENTATION /DPACKAGER_STANDALONE  /Fe:"packager" ..\src\general.cpp ..\src\packager\packager.cpp /link /opt:ref /incremental:no /LIBPATH:"..\external\lib" /subsystem:console SDL2.lib SDL2main.lib shell32.lib Advapi32.lib
 
 popd
 

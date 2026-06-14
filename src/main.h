@@ -14,9 +14,9 @@
 
 #include "general.h"
 #include "geometry.h"
-#include <eastl/vector.h>
-#include <eastl/unordered_map.h>
-#include <eastl/string.h>
+#include <vector>
+#include <unordered_map>
+#include <string>
 #include "packager/packager.h"
 #include "memory_arena.h"
 
@@ -25,7 +25,7 @@
 #define NS_PER_SECOND 1000000000.0
 
 template <typename T>
-inline T *copy_to_array(eastl::vector <T> const &v) {
+inline T *copy_to_array(std::vector <T> const &v) {
     T *result = new T[v.size()];
     memcpy(result, v.data(), v.size() * sizeof(T));
     return result;
@@ -136,7 +136,6 @@ struct Global_Variables {
     Texture *empty_heart       = NULL;
     Texture *restart_taken     = NULL;
     Texture *restart_available = NULL;
-    Texture *door_texture      = NULL;
 
     Sound *level_background_music = NULL;
     Sound *menu_background_music = NULL;
@@ -156,7 +155,7 @@ struct Global_Variables {
     float sfx_volume = 1.0f;
     float music_volume = 1.0f;
 
-    eastl::vector <Highscore> highscores;
+    std::vector <Highscore> highscores;
     int current_level_width = 20;
 
     bool enable_lighting = true;

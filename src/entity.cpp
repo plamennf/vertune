@@ -9,7 +9,7 @@
 void update_single_hero(Hero *hero, float dt) {
     World *world = hero->world;
     assert(world);
-
+    
     Tilemap *tilemap = world->tilemap;
     assert(tilemap);
     
@@ -171,6 +171,11 @@ void update_single_hero(Hero *hero, float dt) {
     } else {
         hero->state = HERO_STATE_IDLE;
     }
+
+    hero->num_invincibility_frames--;
+    if (hero->num_invincibility_frames < 0) {
+        hero->num_invincibility_frames = 0;
+    }
 }
 
 void draw_single_hero(Hero *hero) {
@@ -225,6 +230,9 @@ void draw_single_hero(Hero *hero) {
 }
 
 void damage_hero(Hero *hero, double damage_amount) {
+    if (hero->num_invincibility_frames > 0) return;
+    hero->num_invincibility_frames = MAX_HERO_INVINCIBILITY_FRAMES;
+    
     hero->health -= damage_amount;
     emit_blood_particles(hero->world->particle_system, hero->position);
     if (hero->health <= 0.0) {
@@ -533,9 +541,8 @@ void draw_single_door(Door *door) {
     World *world = door->world;
     assert(world);
 
-    set_shader(globals.shader_texture);
-    set_texture(0, globals.door_texture);
-
+    set_shader(globals.shader_lighting);
+    
     float thickness = 0.0f;
     if (globals.draw_outlines) {
         thickness = door->size.y * 0.1f;
